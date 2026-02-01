@@ -1,6 +1,6 @@
 {
   "name": "agent-annotations-receiver",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": false,
   "description": "Local receiver for Agent Annotations (writes .agent-annotations inbox + assets).",
   "keywords": [
