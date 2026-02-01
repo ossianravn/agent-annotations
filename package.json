@@ -4,8 +4,7 @@
   "version": "0.0.0",
   "packageManager": "pnpm@10.10.0",
   "scripts": {
-    "pack:agent-annotations": "pnpm -C packages/agent-annotations pack",
-    "pack:receiver": "pnpm -C packages/agent-annotations-receiver pack"
+    "pack:agent-annotations": "cd packages/agent-annotations && pnpm pack",
+    "pack:receiver": "cd packages/agent-annotations-receiver && pnpm pack"
   }
 }
-

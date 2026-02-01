@@ -150,8 +150,8 @@ cd ../agent-annotations-receiver && npm pack --dry-run
 
 Publish (first time / new version):
 ```bash
-pnpm -C packages/agent-annotations publish
-pnpm -C packages/agent-annotations-receiver publish
+cd packages/agent-annotations && pnpm publish
+cd ../agent-annotations-receiver && pnpm publish
 ```
 
 Notes:
