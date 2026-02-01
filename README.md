@@ -4,12 +4,12 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 
 ## Quick start
 
-1. In the repo you want to write annotations into, run:
+1. Install the extension (recommended: download the zip from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest) → unzip → load unpacked)
+2. In the repo you want to write annotations into, run (and keep it running):
    ```bash
    pnpm dlx agent-annotations setup
    ```
-2. Install the extension (recommended: download the zip from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest) → unzip → load unpacked)
-3. Paste the printed token into the extension’s connection settings
+3. Paste the token into the extension’s connection settings (it’s also saved to `.agent-annotations/token.txt`)
 4. In your agent, invoke: `check-agent-annotations`
 
 What `setup` does:
@@ -17,20 +17,6 @@ What `setup` does:
 - Installs `.tools/agent-annotations-receiver.js` and starts the receiver (writes `.agent-annotations/` into the repo)
 
 ---
-
-## Manual setup (advanced / debugging)
-
-If you want to run the parts manually:
-
-1. Start the receiver in the repo root:
-   ```bash
-   pnpm dlx agent-annotations-receiver --port 8787
-   ```
-2. Copy the printed token into the extension’s connection settings
-3. Install repo integration:
-   ```bash
-   pnpm dlx agent-annotations init
-   ```
 
 This kit includes:
 - **Chrome extension** (load unpacked)
@@ -72,21 +58,21 @@ Shortcut to toggle annotation mode:
 ## 2) Run the receiver
 
 ### Option A: one command (recommended)
-From the repo root you want to write `.agent-annotations/` into:
+From the repo root you want to write `.agent-annotations/` into (keeps running):
 ```bash
 pnpm dlx agent-annotations setup
 ```
 
-### Option B: receiver only (advanced)
-From the repo root you want to write `.agent-annotations/` into:
+### Option B: start again later
+After you’ve run `setup` once, you can start the receiver again with:
 ```bash
-pnpm dlx agent-annotations-receiver --port 8787
+pnpm dlx agent-annotations start --port 8787
 ```
 
-### Option C: in-repo receiver launcher (advanced)
-After you run `pnpm dlx agent-annotations init` in the target repo, run from the repo root:
+### Option C: receiver only (advanced / debugging)
+If you only want the receiver (no skill/instructions install), run:
 ```bash
-node .tools/agent-annotations-receiver.js --port 8787
+pnpm dlx agent-annotations-receiver --port 8787
 ```
 
 On first run it:
@@ -99,6 +85,8 @@ Paste the token into the extension’s connection settings.
 ---
 
 ## 3) Install into a repo (init scaffold)
+
+This installs repo integration + skill/instructions, but does not start the receiver:
 
 ```bash
 pnpm dlx agent-annotations init
