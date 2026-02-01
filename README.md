@@ -4,7 +4,7 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 
 ## Quick start
 
-1. Install the extension (recommended: download the zip from GitHub Releases → unzip → load unpacked)
+1. Install the extension (recommended: download the zip from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest) → unzip → load unpacked)
 2. Start the receiver:
    ```bash
    pnpm dlx agent-annotations-receiver --port 8787
@@ -30,8 +30,7 @@ Requires a Chromium browser with the Extensions Side Panel API (Chrome/Edge/Brav
 
 ### Option A: Download the extension zip (recommended)
 
-1. Download the latest release asset from GitHub Releases:
-   - https://github.com/ossianravn/agent-annotations/releases/latest
+1. Download the latest release asset from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest)
 2. Unzip it
 3. Open `chrome://extensions`
 4. Enable **Developer mode**
