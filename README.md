@@ -24,7 +24,7 @@ Click the extension icon → the side panel opens.
 
 ## 2) Run the receiver
 
-### Option A: `pnpm dlx` (recommended after you publish)
+### Option A: `pnpm dlx` (recommended)
 ```bash
 pnpm dlx agent-annotations-receiver --port 8787
 ```
