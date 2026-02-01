@@ -8,6 +8,12 @@
  *                               [--receiver repo|none]
  *                               [--force]
  *
+ * One-step workflow:
+ *   pnpm dlx agent-annotations setup [--port 8787]
+ *
+ * Receiver only:
+ *   pnpm dlx agent-annotations start [--port 8787]
+ *
  * This command copies template files into the current repository:
  * - Optional: .tools/agent-annotations-receiver.js (local receiver launcher)
  * - Optional: an Agent Skills-compatible skill folder (check-agent-annotations)
@@ -24,7 +30,9 @@ function usage() {
 agent-annotations
 
 Usage:
-  agent-annotations init [options]
+  agent-annotations setup [options]   # recommended: installs + starts receiver
+  agent-annotations start [options]   # starts receiver (expects .tools/ installed)
+  agent-annotations init [options]    # installs templates only (no receiver)
 
 Options:
   --agent     Which agent integration(s) to install (default: auto)
@@ -39,9 +47,17 @@ Options:
               repo  -> copy .tools/agent-annotations-receiver.js into this repo
               none  -> do not copy receiver files
 
+  --port      Receiver port (default: 8787)
+  --host      Receiver host (default: 0.0.0.0)
+  --repo      Repo root to write .agent-annotations into (default: detected repo root)
+  --no-start  For setup: install only, don’t start receiver
+
   --force     Overwrite existing files
 
 Examples:
+  pnpm dlx agent-annotations setup
+  pnpm dlx agent-annotations setup --port 8787
+  pnpm dlx agent-annotations start
   pnpm dlx agent-annotations init
   pnpm dlx agent-annotations init --agent codex
   pnpm dlx agent-annotations init --agent claude --skill user
@@ -51,15 +67,31 @@ Examples:
 }
 
 function parseArgs(argv) {
-  const out = { cmd: null, agent: "auto", skill: "repo", receiver: "repo", force: false };
+  const out = {
+    cmd: null,
+    agent: "auto",
+    skill: "repo",
+    receiver: "repo",
+    force: false,
+    start: true,
+    port: null,
+    host: null,
+    repo: null,
+    baseUrl: null
+  };
   const a = argv.slice(2);
   out.cmd = a[0] || null;
   for (let i = 1; i < a.length; i++) {
     const v = a[i];
     if (v === "--force") out.force = true;
+    else if (v === "--no-start") out.start = false;
     else if (v === "--agent") { out.agent = (a[i + 1] || "auto"); i++; }
     else if (v === "--skill") { out.skill = (a[i + 1] || "repo"); i++; }
     else if (v === "--receiver") { out.receiver = (a[i + 1] || "repo"); i++; }
+    else if (v === "--port") { out.port = (a[i + 1] || null); i++; }
+    else if (v === "--host") { out.host = (a[i + 1] || null); i++; }
+    else if (v === "--repo") { out.repo = (a[i + 1] || null); i++; }
+    else if (v === "--base-url") { out.baseUrl = (a[i + 1] || null); i++; }
   }
 
   const agentNorm = String(out.agent || "auto").toLowerCase();
@@ -78,6 +110,35 @@ function tryRepoRoot() {
     if (r) return r;
   } catch {}
   return process.cwd();
+}
+
+function receiverScriptPath(repoRoot) {
+  return path.join(repoRoot, ".tools", "agent-annotations-receiver.js");
+}
+
+function startReceiver({ repoRoot, port, host, baseUrl }) {
+  const script = receiverScriptPath(repoRoot);
+  if (!fs.existsSync(script)) {
+    console.error("");
+    console.error("Receiver launcher not found:", script);
+    console.error("Run setup first to install it:");
+    console.error("  pnpm dlx agent-annotations setup");
+    console.error("");
+    process.exit(1);
+  }
+
+  const args = [script];
+  if (port) args.push("--port", String(port));
+  if (host) args.push("--host", String(host));
+  if (repoRoot) args.push("--repo", String(repoRoot));
+  if (baseUrl) args.push("--base-url", String(baseUrl));
+
+  const child = cp.spawn(process.execPath, args, {
+    cwd: repoRoot,
+    stdio: "inherit",
+    env: process.env
+  });
+  child.on("exit", (code) => process.exit(code || 0));
 }
 
 function copyFile(src, dest, force) {
@@ -187,19 +248,7 @@ Browser validation:
 `;
 }
 
-function main() {
-  const args = parseArgs(process.argv);
-  if (!args.cmd || args.cmd === "-h" || args.cmd === "--help") {
-    usage();
-    process.exit(args.cmd ? 0 : 1);
-  }
-  if (args.cmd !== "init") {
-    console.error("Unknown command:", args.cmd);
-    usage();
-    process.exit(1);
-  }
-
-  const repoRoot = tryRepoRoot();
+function runInit(args, repoRoot) {
   const templatesRoot = path.join(__dirname, "..", "templates", "repo-integration");
 
   if (!fs.existsSync(templatesRoot)) {
@@ -247,30 +296,73 @@ function main() {
     }
   }
 
-  console.log("");
-  console.log("Agent Annotations initialized in:", repoRoot);
-  console.log("Installed integrations:", agents.join(", "));
-  console.log("");
-  console.log("Next steps:");
-  if (args.receiver !== "none") {
-    console.log("  1) Run receiver:");
-    console.log("     node .tools/agent-annotations-receiver.js --port 8787");
-    console.log("     (or after publishing: pnpm dlx agent-annotations-receiver --port 8787)");
-    console.log("  2) Copy token from .agent-annotations/token.txt into the Chrome extension.");
-  } else {
-    console.log("  1) Run receiver (choose one):");
-    console.log("     pnpm dlx agent-annotations-receiver --port 8787");
-    console.log("     # or: node path/to/agent-annotations-receiver.js --port 8787");
+  return { repoRoot, agents };
+}
+
+function main() {
+  const args = parseArgs(process.argv);
+  if (!args.cmd || args.cmd === "-h" || args.cmd === "--help") {
+    usage();
+    process.exit(args.cmd ? 0 : 1);
+  }
+  if (!["init", "setup", "start"].includes(args.cmd)) {
+    console.error("Unknown command:", args.cmd);
+    usage();
+    process.exit(1);
   }
 
-  if (args.skill !== "none") {
-    console.log("  3) In your agent, invoke the skill/instructions: check-agent-annotations");
-    console.log("     - Codex: $check-agent-annotations");
-    console.log("     - Claude Code: /check-agent-annotations");
-    console.log("     - Gemini CLI: ask to activate the skill when relevant");
-  } else {
-    console.log("  3) (Skill not installed — you can install later with --skill repo|user)");
+  const targetRepoRoot = path.resolve(args.repo || tryRepoRoot());
+
+  if (args.cmd === "start") {
+    startReceiver({
+      repoRoot: targetRepoRoot,
+      port: args.port || process.env.ANNOTATION_PORT || "8787",
+      host: args.host || process.env.ANNOTATION_HOST || "0.0.0.0",
+      baseUrl: args.baseUrl || process.env.ANNOTATION_BASE_URL || null
+    });
+    return;
   }
+
+  const { agents } = runInit(args, targetRepoRoot);
+
+  console.log("");
+  console.log("Agent Annotations initialized in:", targetRepoRoot);
+  console.log("Installed integrations:", agents.join(", "));
+  console.log("");
+
+  if (args.cmd === "setup") {
+    if (args.receiver === "none") {
+      console.log("Receiver installation disabled via --receiver none.");
+      console.log("Run a receiver some other way, then connect the extension with its token.");
+      console.log("");
+      return;
+    }
+    if (!args.start) {
+      console.log("Receiver start disabled via --no-start.");
+      console.log("Start it when ready:");
+      console.log("  pnpm dlx agent-annotations start --port 8787");
+      console.log("");
+      return;
+    }
+
+    console.log("Starting receiver in:", targetRepoRoot);
+    console.log("(Press Ctrl+C to stop)");
+    startReceiver({
+      repoRoot: targetRepoRoot,
+      port: args.port || process.env.ANNOTATION_PORT || "8787",
+      host: args.host || process.env.ANNOTATION_HOST || "0.0.0.0",
+      baseUrl: args.baseUrl || process.env.ANNOTATION_BASE_URL || null
+    });
+    return;
+  }
+
+  console.log("Next steps:");
+  console.log("  1) Start receiver:");
+  console.log("     pnpm dlx agent-annotations start --port 8787");
+  console.log("  2) Copy token from .agent-annotations/token.txt into the Chrome extension.");
+  console.log("  3) In your agent, invoke: check-agent-annotations");
+  console.log("     - Codex: $check-agent-annotations");
+  console.log("     - Claude Code: /check-agent-annotations");
   console.log("");
 }
 
