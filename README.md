@@ -4,7 +4,7 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 
 ## Quick start
 
-1. Install the extension (load unpacked from `chrome-extension/`)
+1. Install the extension (recommended: download the zip from GitHub Releases → unzip → load unpacked)
 2. Start the receiver:
    ```bash
    pnpm dlx agent-annotations-receiver --port 8787
