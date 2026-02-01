@@ -11,7 +11,7 @@ This kit includes:
 
 ---
 
-## 1) Install the Chrome extension (Windows)
+## 1) Install the extension (Chrome/Chromium: Windows/macOS/Linux)
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
