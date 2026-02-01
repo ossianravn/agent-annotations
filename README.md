@@ -4,14 +4,28 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 
 ## Quick start
 
-1. Install the extension (recommended: download the zip from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest) → unzip → load unpacked)
+### First time (per repo)
+
+1. Install the extension:
+   - Download the zip from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest)
+   - Unzip it (so the folder contains `manifest.json` at the top level)
+   - In `chrome://extensions` (Developer mode), **drag the folder in** (or click **Load unpacked** and select it)
 2. In the repo you want to write annotations into, run (and keep it running):
    ```bash
    pnpm dlx agent-annotations setup
    ```
-   If you’re using a specific agent, you can set it explicitly (example: `--agent claude`).
+   If you’re using a specific agent, set it explicitly (example: `--agent claude`).
 3. Paste the token into the extension’s connection settings (it’s also saved to `.agent-annotations/token.txt`)
 4. In your agent, invoke: `check-agent-annotations`
+
+### Daily use
+
+1. From the repo root, start the receiver (and keep it running):
+   ```bash
+   pnpm dlx agent-annotations start --port 8787
+   ```
+2. Open the extension (it should already have your token; if not, use `.agent-annotations/token.txt`)
+3. In your agent, invoke: `check-agent-annotations`
 
 What `setup` does:
 - Installs the skill/instructions into the repo (so your agent will read `.agent-annotations/`)
@@ -38,8 +52,7 @@ Requires a Chromium browser with the Extensions Side Panel API (Chrome/Edge/Brav
 2. Unzip it into its own folder (so the folder contains `manifest.json` at the top level)
 3. Open `chrome://extensions`
 4. Enable **Developer mode**
-5. Click **Load unpacked**
-6. Select the folder you unzipped into (it contains `manifest.json`)
+5. Drag the folder into the page (or click **Load unpacked** and select it)
 
 ### Option B: Load unpacked from this repo
 
