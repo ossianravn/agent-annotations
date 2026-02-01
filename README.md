@@ -119,3 +119,41 @@ Browser validation should only happen if the **user explicitly asks**, and only 
 
 - `.tools/` is intentionally a **process tool** folder.
 - Use `.gitignore.snippet` if you want to keep assets or inbox files out of git.
+
+---
+
+## Maintainers
+
+### GitHub
+
+```bash
+git remote -v
+git push -u origin main
+```
+
+### Publishing (npm registry via pnpm)
+
+Prereqs:
+- Create an npm account (npmjs.com) and log in.
+
+Login:
+```bash
+pnpm login
+npm whoami
+```
+
+Sanity-check the published contents:
+```bash
+cd packages/agent-annotations && npm pack --dry-run
+cd ../agent-annotations-receiver && npm pack --dry-run
+```
+
+Publish (first time / new version):
+```bash
+pnpm -C packages/agent-annotations publish
+pnpm -C packages/agent-annotations-receiver publish
+```
+
+Notes:
+- `pnpm publish` publishes to the npm registry (same place `npm publish` goes).
+- If npm 2FA is enabled, you may be prompted for an OTP during publish.
