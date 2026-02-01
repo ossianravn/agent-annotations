@@ -31,8 +31,8 @@ def main() -> int:
     parser.add_argument("--version", default="", help="Override version (default: manifest.json version).")
     parser.add_argument(
         "--prefix",
-        default="agent-annotations-chrome-extension",
-        help="Top-level folder name inside the zip (default: agent-annotations-chrome-extension).",
+        default="",
+        help="Optional top-level folder name inside the zip (default: none; files are at zip root).",
     )
     args = parser.parse_args()
 
@@ -57,8 +57,6 @@ def main() -> int:
         out_path.unlink()
 
     zip_root_prefix = args.prefix.strip().strip("/\\")
-    if not zip_root_prefix:
-        raise SystemExit("--prefix cannot be empty.")
 
     with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(chrome_dir.rglob("*")):
@@ -67,7 +65,7 @@ def main() -> int:
             rel = path.relative_to(chrome_dir).as_posix()
             if rel.endswith(".DS_Store"):
                 continue
-            arcname = f"{zip_root_prefix}/{rel}"
+            arcname = f"{zip_root_prefix}/{rel}" if zip_root_prefix else rel
             zf.write(path, arcname)
 
     digest = sha256_file(out_path)
@@ -81,4 +79,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

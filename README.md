@@ -35,11 +35,11 @@ Requires a Chromium browser with the Extensions Side Panel API (Chrome/Edge/Brav
 ### Option A: Download the extension zip (recommended)
 
 1. Download the latest release asset from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest)
-2. Unzip it
+2. Unzip it into its own folder (so the folder contains `manifest.json` at the top level)
 3. Open `chrome://extensions`
 4. Enable **Developer mode**
 5. Click **Load unpacked**
-6. Select the unzipped folder (it contains `manifest.json`)
+6. Select the folder you unzipped into (it contains `manifest.json`)
 
 ### Option B: Load unpacked from this repo
 
