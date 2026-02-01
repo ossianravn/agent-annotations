@@ -2,10 +2,23 @@
 
 A Chrome side-panel extension for annotating UI elements on pages (often `localhost`), plus a lightweight local receiver that writes an agent-friendly inbox into your repo.
 
+## Quick start
+
+1. Install the extension (load unpacked from `chrome-extension/`)
+2. Start the receiver:
+   ```bash
+   pnpm dlx agent-annotations-receiver --port 8787
+   ```
+3. Copy the printed token into the extension’s connection settings
+4. (Optional) Install repo integration:
+   ```bash
+   pnpm dlx agent-annotations init
+   ```
+
 This kit includes:
 - **Chrome extension** (load unpacked)
 - **Repo integration** (`.tools` receiver launcher + example snippets)
-- **NPM package skeletons** for:
+- **Published npm packages**:
   - `agent-annotations-receiver` (CLI receiver)
   - `agent-annotations` (init scaffold for repos)
 
@@ -13,12 +26,18 @@ This kit includes:
 
 ## 1) Install the extension (Chrome/Chromium: Windows/macOS/Linux)
 
+Requires a Chromium browser with the Extensions Side Panel API (Chrome/Edge/Brave, etc.).
+
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
 4. Select: `chrome-extension/`
 
 Click the extension icon → the side panel opens.
+
+Shortcut to toggle annotation mode:
+- Windows/Linux: `Ctrl+Shift+Y`
+- macOS: `Command+Shift+Y`
 
 ---
 
@@ -30,7 +49,7 @@ pnpm dlx agent-annotations-receiver --port 8787
 ```
 
 ### Option B: in-repo script
-From your repo root:
+After you run `pnpm dlx agent-annotations init` (or otherwise copy the `.tools/` files) in the target repo, run from the repo root:
 ```bash
 node .tools/agent-annotations-receiver.js --port 8787
 ```
@@ -45,8 +64,6 @@ Paste the token into the extension’s connection settings.
 ---
 
 ## 3) Install into a repo (init scaffold)
-
-After you publish `agent-annotations`, users can do:
 
 ```bash
 pnpm dlx agent-annotations init
@@ -118,42 +135,4 @@ Browser validation should only happen if the **user explicitly asks**, and only 
 ## Repo hygiene
 
 - `.tools/` is intentionally a **process tool** folder.
-- Use `.gitignore.snippet` if you want to keep assets or inbox files out of git.
-
----
-
-## Maintainers
-
-### GitHub
-
-```bash
-git remote -v
-git push -u origin main
-```
-
-### Publishing (npm registry via pnpm)
-
-Prereqs:
-- Create an npm account (npmjs.com) and log in.
-
-Login:
-```bash
-pnpm login
-npm whoami
-```
-
-Sanity-check the published contents:
-```bash
-cd packages/agent-annotations && npm pack --dry-run
-cd ../agent-annotations-receiver && npm pack --dry-run
-```
-
-Publish (first time / new version):
-```bash
-cd packages/agent-annotations && pnpm publish
-cd ../agent-annotations-receiver && pnpm publish
-```
-
-Notes:
-- `pnpm publish` publishes to the npm registry (same place `npm publish` goes).
-- If npm 2FA is enabled, you may be prompted for an OTP during publish.
+- In most repos you’ll want to ignore `.agent-annotations/`; copy `.gitignore.snippet` into your repo’s `.gitignore`.
