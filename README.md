@@ -9,6 +9,7 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
    ```bash
    pnpm dlx agent-annotations setup
    ```
+   If you’re using a specific agent, you can set it explicitly (example: `--agent claude`).
 3. Paste the token into the extension’s connection settings (it’s also saved to `.agent-annotations/token.txt`)
 4. In your agent, invoke: `check-agent-annotations`
 
