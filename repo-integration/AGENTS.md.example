@@ -1,0 +1,18 @@
+# AGENTS.md (example snippet)
+
+## Agent Annotations
+- UI annotations may exist under `.agent-annotations/`.
+- Before making UI changes, you MAY check open annotations if the user asks, or if it is clearly relevant.
+- After implementing a fix, mark related annotations `resolved`.
+
+## Browser validation (only if user requests it)
+If the user explicitly asks to validate in a browser and a browser automation tool is available (browser skill, MCP tool, Playwright, etc.):
+- open the annotated URL
+- locate the element using `data-testid` / role / text hints
+- capture before/after screenshots
+
+## Local receiver (run by the user)
+- The receiver is a user-run process. Do NOT start long-running servers unless asked.
+- Run from repo root:
+  - `node .tools/agent-annotations-receiver.js --port 8787`
+  - or `pnpm dlx agent-annotations-receiver --port 8787`

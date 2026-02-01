@@ -1,0 +1,11 @@
+{
+  "name": "agent-annotations-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.10.0",
+  "scripts": {
+    "pack:agent-annotations": "pnpm -C packages/agent-annotations pack",
+    "pack:receiver": "pnpm -C packages/agent-annotations-receiver pack"
+  }
+}
+

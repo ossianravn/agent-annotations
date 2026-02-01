@@ -1,0 +1,39 @@
+{
+  "name": "agent-annotations",
+  "version": "0.3.0",
+  "private": false,
+  "description": "Init scaffold for Agent Annotations (copies receiver + optional agent skills/instructions into a repo).",
+  "keywords": [
+    "ai",
+    "agent",
+    "annotations",
+    "cli",
+    "copilot",
+    "codex",
+    "claude",
+    "gemini"
+  ],
+  "bin": {
+    "agent-annotations": "bin/agent-annotations.js"
+  },
+  "type": "commonjs",
+  "files": [
+    "bin",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ossianravn/agent-annotations.git",
+    "directory": "packages/agent-annotations"
+  },
+  "bugs": {
+    "url": "https://github.com/ossianravn/agent-annotations/issues"
+  },
+  "homepage": "https://github.com/ossianravn/agent-annotations#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

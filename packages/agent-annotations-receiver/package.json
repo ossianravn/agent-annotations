@@ -1,0 +1,35 @@
+{
+  "name": "agent-annotations-receiver",
+  "version": "0.3.0",
+  "private": false,
+  "description": "Local receiver for Agent Annotations (writes .agent-annotations inbox + assets).",
+  "keywords": [
+    "ai",
+    "agent",
+    "annotations",
+    "cli",
+    "receiver"
+  ],
+  "bin": {
+    "agent-annotations-receiver": "bin/agent-annotations-receiver.js"
+  },
+  "type": "commonjs",
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ossianravn/agent-annotations.git",
+    "directory": "packages/agent-annotations-receiver"
+  },
+  "bugs": {
+    "url": "https://github.com/ossianravn/agent-annotations/issues"
+  },
+  "homepage": "https://github.com/ossianravn/agent-annotations#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
