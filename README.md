@@ -28,6 +28,18 @@ This kit includes:
 
 Requires a Chromium browser with the Extensions Side Panel API (Chrome/Edge/Brave, etc.).
 
+### Option A: Download the extension zip (recommended)
+
+1. Download the latest release asset from GitHub Releases:
+   - https://github.com/ossianravn/agent-annotations/releases/latest
+2. Unzip it
+3. Open `chrome://extensions`
+4. Enable **Developer mode**
+5. Click **Load unpacked**
+6. Select the unzipped folder (it contains `manifest.json`)
+
+### Option B: Load unpacked from this repo
+
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
