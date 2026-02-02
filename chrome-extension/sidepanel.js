@@ -56,6 +56,40 @@ function setConnDot(ok) {
   }
 }
 
+function setConnStatus(status) {
+  const el = $("connDot");
+  const txt = $("connText");
+
+  const s = String(status || "offline");
+  const isOk = s === "ok";
+  const isWarn = s === "unauthorized" || s === "missing-token";
+
+  const dotColor =
+    isOk ? "#22c55e" : // green
+    isWarn ? "#f59e0b" : // amber
+    "#ef4444"; // red
+
+  const text =
+    s === "ok" ? "Connected" :
+    s === "missing-token" ? "Token missing" :
+    s === "unauthorized" ? "Bad token" :
+    "Not reachable";
+
+  const textColor =
+    s === "ok" ? "#16a34a" :
+    isWarn ? "#b45309" :
+    "#dc2626";
+
+  if (el) {
+    el.style.background = dotColor;
+    el.style.color = dotColor; // used by box-shadow in CSS (currentColor)
+  }
+  if (txt) {
+    txt.textContent = text;
+    txt.style.color = textColor;
+  }
+}
+
 async function loadSettings() {
   const saved = await chrome.storage.local.get(["serverUrl", "token"]);
   if (saved.serverUrl) state.settings.serverUrl = saved.serverUrl;
@@ -427,19 +461,65 @@ async function postAnnotation() {
   return data;
 }
 
-async function testConnection() {
+async function testConnection(opts = {}) {
+  const { throwOnFail = false } = opts || {};
   const serverUrl = ($("serverUrl").value.trim() || state.settings.serverUrl).replace(/\/$/, "");
+  const token = ($("token").value.trim() || state.settings.token || "").trim();
   const u = serverUrl + "/health";
   const disp = $("serverUrlDisplay");
   if (disp) disp.textContent = serverUrl;
   try {
     const res = await fetch(u);
     const data = await res.json().catch(() => ({}));
-    const ok = !!(res.ok && data.ok);
-    setConnDot(ok);
-    return ok;
-  } catch {
-    setConnDot(false);
+    const reachable = !!(res.ok && data.ok);
+    if (!reachable) {
+      setConnStatus("offline");
+      if (throwOnFail) throw new Error("Receiver not reachable.");
+      return false;
+    }
+
+    if (!token) {
+      setConnStatus("missing-token");
+      if (throwOnFail) throw new Error("Token missing.");
+      return false;
+    }
+
+    // Verify token without side effects:
+    // - receiver checks auth before parsing JSON
+    // - an empty body will return 401 (bad token) or 400 (missing annotation) if authorized
+    const authUrl = serverUrl + "/annotations";
+    const authRes = await fetch(authUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Annotation-Token": token
+      },
+      body: "{}"
+    });
+
+    if (authRes.status === 401) {
+      setConnStatus("unauthorized");
+      if (throwOnFail) throw new Error("Bad token.");
+      return false;
+    }
+
+    if (authRes.status === 400) {
+      // expected (authorized but missing annotation payload)
+      setConnStatus("ok");
+      return true;
+    }
+
+    if (authRes.ok) {
+      setConnStatus("ok");
+      return true;
+    }
+
+    setConnStatus("offline");
+    if (throwOnFail) throw new Error(`Receiver check failed (${authRes.status}).`);
+    return false;
+  } catch (e) {
+    setConnStatus("offline");
+    if (throwOnFail) throw e;
     return false;
   }
 }
@@ -610,15 +690,14 @@ function bindUI() {
   $("saveSettings").addEventListener("click", async () => {
     await withControlFeedback($("saveSettings"), async () => {
       await saveSettings();
-      await testConnection();
+      await testConnection({ throwOnFail: true });
     }, { busyText: "Saving…", okText: "Saved", errorText: "Failed" }).catch(() => {});
   });
 
   $("testConn").addEventListener("click", async () => {
     await withControlFeedback($("testConn"), async () => {
       await saveSettings();
-      const ok = await testConnection();
-      if (!ok) throw new Error("Not reachable");
+      await testConnection({ throwOnFail: true });
     }, { busyText: "Testing…", okText: "Connected", errorText: "Not reachable" }).catch(() => {});
   });
 
