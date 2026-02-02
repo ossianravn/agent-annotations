@@ -682,6 +682,15 @@ function bindUI() {
       await refreshActiveTabInfo();
       const resp = await postAnnotation();
       await setAnnotateMode(false);
+      // Clear selection after a successful send so users don't accidentally
+      // "reuse" the previous element in the next report.
+      state.selectedElement = null;
+      renderSelectedElement();
+      try {
+        if (state.activeTab?.id) {
+          chrome.tabs.sendMessage(state.activeTab.id, { type: "ANNOTATE_CLEAR_SELECTION" }).catch(() => {});
+        }
+      } catch {}
       $("comment").value = "";
       $("tags").value = "";
       state.attachments = [];
