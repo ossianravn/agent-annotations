@@ -124,6 +124,15 @@ function extFromMime(mime) {
   return ".bin";
 }
 
+function normalizeAssetFilename(rawName, mime, fallbackBase) {
+  const desiredExt = extFromMime(mime);
+  const base = safeName(rawName || fallbackBase);
+  const lower = base.toLowerCase();
+  if (lower.endsWith(desiredExt)) return base;
+  if (/\.(png|jpe?g|webp|bin)$/i.test(base)) return base;
+  return base + desiredExt;
+}
+
 function generateId() {
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const rand = crypto.randomBytes(4).toString("hex");
@@ -216,7 +225,7 @@ async function handlePostAnnotation(req, res, token) {
     if (!parsed || !parsed.b64) continue;
 
     const mime = a.mime || parsed.mime || "application/octet-stream";
-    const name = safeName(a.name || `asset_${i}`) + extFromMime(mime);
+    const name = normalizeAssetFilename(a.name, mime, `asset_${i}`);
     const relPath = path.join(".agent-annotations", "assets", "open", `${id}_${i}_${name}`);
     const absPath = path.join(REPO_ROOT, relPath);
 
