@@ -2,6 +2,20 @@
 
 A Chrome side-panel extension for annotating UI elements on pages (often `localhost`), plus a lightweight local receiver that writes an agent-friendly inbox into your repo.
 
+## How it works (visual)
+
+1) Annotate an element in the extension and click **Send Report**:
+
+<img src="docs/images/example-usage-1.png" width="900" alt="Agent Annotations: creating an annotation in the extension" />
+
+2) The receiver writes an agent-friendly inbox into your repo (`.agent-annotations/`):
+
+<img src="docs/images/example-usage-2.png" width="900" alt="Agent Annotations: receiver writing annotations into the repo" />
+
+3) In your agent, run `check-agent-annotations` to turn annotations into actions:
+
+<img src="docs/images/example-usage-3.png" width="900" alt="Agent Annotations: agent workflow reading annotations" />
+
 ## Quick start
 
 ### First time (per repo)
