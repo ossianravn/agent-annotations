@@ -17,6 +17,7 @@ const state = {
   attachments: [], // {id, name, mime, dataUrl}
   openAnnotations: [],
   selectedAnnotation: null,
+  previewAttachment: null,
   settings: {
     serverUrl: "http://localhost:8787",
     token: ""
@@ -193,11 +194,19 @@ function renderAttachments() {
 
     const thumb = document.createElement("div");
     thumb.className = "thumb";
-    if (att.mime && att.mime.startsWith("image/") && att.dataUrl) {
+    const isImage = !!(att.mime && att.mime.startsWith("image/") && att.dataUrl);
+    if (isImage) {
       const img = document.createElement("img");
       img.src = att.dataUrl;
       img.alt = att.name;
       thumb.appendChild(img);
+
+      thumb.classList.add("is-clickable");
+      thumb.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openAssetPreview(att);
+      });
     } else {
       const ph = document.createElement("div");
       ph.className = "muted tiny";
@@ -415,10 +424,7 @@ function buildAnnotationPayload() {
   const comment = $("comment").value.trim();
   if (!comment) throw new Error("Comment is empty.");
 
-  const tags = ($("tags").value || "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const tags = [];
 
   const severity = $("severity").value;
 
@@ -627,6 +633,32 @@ function closeDetail() {
   if (dlg.open) dlg.close();
 }
 
+function openAssetPreview(att) {
+  if (!att || !att.dataUrl) return;
+  state.previewAttachment = att;
+
+  const dlg = $("assetDialog");
+  $("assetTitle").textContent = att.name || "Attachment";
+
+  const bytes = estimateBytesFromDataUrl(att.dataUrl);
+  const size = formatBytes(bytes);
+  $("assetMeta").textContent = [att.mime || "attachment", size].filter(Boolean).join(" • ") || "—";
+
+  const img = $("assetImg");
+  img.src = att.dataUrl;
+  img.alt = att.name || "Attachment preview";
+
+  dlg.showModal();
+}
+
+function closeAssetPreview() {
+  state.previewAttachment = null;
+  const dlg = $("assetDialog");
+  const img = $("assetImg");
+  if (img) img.src = "";
+  if (dlg.open) dlg.close();
+}
+
 function copyAsPrompt(ann) {
   const primary = ann.element?.primary || {};
   const alt = (ann.element?.alternates || []).map(a => `${a.type}:${a.value || ""}`).join(", ");
@@ -760,7 +792,6 @@ function bindUI() {
       await saveSettings();
       await refreshActiveTabInfo();
       const resp = await postAnnotation();
-      await setAnnotateMode(false);
       // Clear selection after a successful send so users don't accidentally
       // "reuse" the previous element in the next report.
       state.selectedElement = null;
@@ -770,8 +801,8 @@ function bindUI() {
           chrome.tabs.sendMessage(state.activeTab.id, { type: "ANNOTATE_CLEAR_SELECTION" }).catch(() => {});
         }
       } catch {}
+      await setAnnotateMode(false);
       $("comment").value = "";
-      $("tags").value = "";
       state.attachments = [];
       renderAttachments();
       updateSendEnabled();
@@ -825,6 +856,16 @@ function bindUI() {
     const rect = dlg.getBoundingClientRect();
     const inDialog = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
     if (!inDialog) closeDetail();
+  });
+
+  // Asset preview dialog controls
+  $("closeAsset").addEventListener("click", () => closeAssetPreview());
+  $("assetDialog").addEventListener("click", (e) => {
+    // click outside closes
+    const dlg = $("assetDialog");
+    const rect = dlg.getBoundingClientRect();
+    const inDialog = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (!inDialog) closeAssetPreview();
   });
 
   $("copyPrompt").addEventListener("click", () => {
