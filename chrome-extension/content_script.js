@@ -139,40 +139,154 @@
   }
 
   function cssEscapeIdent(ident) {
-    return String(ident).replace(/["\\]/g, "\\$&");
+    const s = String(ident == null ? "" : ident);
+    if (globalThis.CSS && typeof globalThis.CSS.escape === "function") {
+      try { return globalThis.CSS.escape(s); } catch {}
+    }
+    // CSS.escape polyfill (identifier mode).
+    // Ref: https://drafts.csswg.org/cssom/#serialize-an-identifier
+    let out = "";
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      const code = s.charCodeAt(i);
+
+      if (code === 0x0000) {
+        out += "\uFFFD";
+        continue;
+      }
+
+      const isControl = (code >= 0x0001 && code <= 0x001f) || code === 0x007f;
+      const isDigit = code >= 0x0030 && code <= 0x0039;
+      const isAsciiLetter =
+        (code >= 0x0041 && code <= 0x005a) ||
+        (code >= 0x0061 && code <= 0x007a);
+
+      if (
+        isControl ||
+        (i === 0 && isDigit) ||
+        (i === 1 && isDigit && s.charCodeAt(0) === 0x002d)
+      ) {
+        out += "\\" + code.toString(16) + " ";
+        continue;
+      }
+
+      if (i === 0 && ch === "-" && s.length === 1) {
+        out += "\\-";
+        continue;
+      }
+
+      const isSafe =
+        code >= 0x0080 ||
+        ch === "-" ||
+        ch === "_" ||
+        isAsciiLetter ||
+        isDigit;
+
+      if (isSafe) {
+        out += ch;
+        continue;
+      }
+
+      out += "\\" + ch;
+    }
+    return out;
+  }
+
+  function cssEscapeAttrValue(v) {
+    return String(v == null ? "" : v).replace(/["\\\n\r\f]/g, "\\$&");
+  }
+
+  function candidateClasses(el) {
+    const list = el && el.classList ? Array.from(el.classList) : [];
+    return list
+      .map((c) => String(c || "").trim())
+      .filter(Boolean)
+      .filter((c) => c.length <= 48)
+      .filter((c) => !/^ng-/.test(c))
+      .filter((c) => !/^(active|selected|open|closed|disabled|enabled|focus|focused|hover|pressed)$/.test(c));
+  }
+
+  function siblingMatchCount(parent, selector) {
+    if (!parent) return null;
+    try {
+      return parent.querySelectorAll(`:scope > ${selector}`).length;
+    } catch {
+      return null;
+    }
+  }
+
+  function buildSegment(el) {
+    if (!el || el.nodeType !== 1) return null;
+    const tag = (el.tagName || "").toLowerCase();
+
+    if (el.id) return "#" + cssEscapeIdent(el.id);
+
+    const t = getStableTestAttr(el);
+    if (t) return `${tag}[${t.attr}="${cssEscapeAttrValue(t.value)}"]`;
+
+    const parent = el.parentElement;
+    const classes = candidateClasses(el);
+
+    let seg = tag || "*";
+    if (classes.length) {
+      const scored = [];
+      for (const cls of classes) {
+        const cand = `${tag}.${cssEscapeIdent(cls)}`;
+        const n = siblingMatchCount(parent, cand);
+        if (n != null) scored.push({ cls, n });
+      }
+      scored.sort((a, b) => a.n - b.n);
+
+      const chosen = [];
+      for (const { cls } of scored) {
+        chosen.push(cls);
+        const cand = `${tag}${chosen.map((c) => "." + cssEscapeIdent(c)).join("")}`;
+        const n = siblingMatchCount(parent, cand);
+        if (n === 1) {
+          seg = cand;
+          break;
+        }
+        // keep adding until we either get uniqueness or hit a reasonable size
+        if (chosen.length >= 5) {
+          seg = cand;
+          break;
+        }
+        seg = cand;
+      }
+    }
+
+    // Last resort: :nth-of-type
+    const n = siblingMatchCount(parent, seg);
+    if (n != null && n > 1 && parent) {
+      let index = 1;
+      const siblings = Array.from(parent.children).filter(s => s.tagName === el.tagName);
+      index = siblings.indexOf(el) + 1;
+      seg = `${seg}:nth-of-type(${Math.max(1, index)})`;
+    }
+
+    return seg;
   }
 
   function buildCssSelector(el) {
     if (!el || el.nodeType !== 1) return null;
 
-    const id = el.id;
-    if (id) return "#" + cssEscapeIdent(id);
-
-    const test = getStableTestAttr(el);
-    if (test) return `${el.tagName.toLowerCase()}[${test.attr}="${cssEscapeIdent(test.value)}"]`;
-
     const parts = [];
     let cur = el;
-    for (let depth = 0; depth < 4 && cur && cur.nodeType === 1; depth++) {
-      const tag = cur.tagName.toLowerCase();
-      const t = getStableTestAttr(cur);
-      if (cur.id) {
-        parts.unshift("#" + cssEscapeIdent(cur.id));
-        break;
-      }
-      if (t) {
-        parts.unshift(`${tag}[${t.attr}="${cssEscapeIdent(t.value)}"]`);
-        break;
-      }
+    for (let depth = 0; depth < 12 && cur && cur.nodeType === 1; depth++) {
+      const seg = buildSegment(cur);
+      if (!seg) break;
+      parts.unshift(seg);
 
-      let index = 1;
-      if (cur.parentElement) {
-        const siblings = Array.from(cur.parentElement.children).filter(s => s.tagName === cur.tagName);
-        index = siblings.indexOf(cur) + 1;
-      }
-      parts.unshift(`${tag}:nth-of-type(${index})`);
+      const selector = parts.join(" > ");
+      try {
+        const matches = document.querySelectorAll(selector);
+        if (matches.length === 1) return selector;
+      } catch {}
+
+      if (cur.id || getStableTestAttr(cur)) break;
       cur = cur.parentElement;
     }
+
     return parts.length ? parts.join(" > ") : null;
   }
 
@@ -202,15 +316,15 @@
     if (test && test.attr === "data-testid") {
       primary.type = "testid";
       primary.value = test.value;
-      alternates.push({ type: "css", value: `${el.tagName.toLowerCase()}[data-testid="${test.value}"]` });
+      alternates.push({ type: "css", value: `${el.tagName.toLowerCase()}[data-testid="${cssEscapeAttrValue(test.value)}"]` });
     } else if (test) {
       primary.type = "attr";
       primary.value = `${test.attr}=${test.value}`;
-      alternates.push({ type: "css", value: `${el.tagName.toLowerCase()}[${test.attr}="${test.value}"]` });
+      alternates.push({ type: "css", value: `${el.tagName.toLowerCase()}[${test.attr}="${cssEscapeAttrValue(test.value)}"]` });
     } else if (el.id) {
       primary.type = "id";
       primary.value = el.id;
-      alternates.push({ type: "css", value: "#" + el.id });
+      alternates.push({ type: "css", value: "#" + cssEscapeIdent(el.id) });
     } else {
       const css = buildCssSelector(el);
       primary.type = "css";

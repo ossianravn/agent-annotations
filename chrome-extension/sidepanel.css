@@ -419,11 +419,11 @@ body {
 .pill-btn.is-active { opacity: 1; }
 
 .pill-btn.sev-bug { color: #e74c3c; background: color-mix(in srgb, #e74c3c 10%, transparent); }
-.pill-btn:is(.sev-question, .sev-warning) { color: #f59e0b; background: color-mix(in srgb, #f59e0b 12%, transparent); }
-.pill-btn:is(.sev-note, .sev-info) { color: #3b82f6; background: color-mix(in srgb, #3b82f6 10%, transparent); }
+.pill-btn:is(.sev-feature, .sev-question, .sev-warning) { color: #f59e0b; background: color-mix(in srgb, #f59e0b 12%, transparent); }
+.pill-btn:is(.sev-info, .sev-note, .sev-information) { color: #3b82f6; background: color-mix(in srgb, #3b82f6 10%, transparent); }
 .pill-btn.is-active.sev-bug { border-color: color-mix(in srgb, #e74c3c 34%, transparent); }
-.pill-btn.is-active:is(.sev-question, .sev-warning) { border-color: color-mix(in srgb, #f59e0b 34%, transparent); }
-.pill-btn.is-active:is(.sev-note, .sev-info) { border-color: color-mix(in srgb, #3b82f6 34%, transparent); }
+.pill-btn.is-active:is(.sev-feature, .sev-question, .sev-warning) { border-color: color-mix(in srgb, #f59e0b 34%, transparent); }
+.pill-btn.is-active:is(.sev-info, .sev-note, .sev-information) { border-color: color-mix(in srgb, #3b82f6 34%, transparent); }
 
 .sr-only {
   position: absolute !important;
@@ -536,12 +536,12 @@ body {
   border-color: color-mix(in srgb, #e74c3c 24%, transparent);
   background: color-mix(in srgb, #e74c3c 10%, transparent);
 }
-.badge:is(.sev-question, .sev-warning) {
+.badge:is(.sev-feature, .sev-question, .sev-warning) {
   color: #f59e0b;
   border-color: color-mix(in srgb, #f59e0b 24%, transparent);
   background: color-mix(in srgb, #f59e0b 11%, transparent);
 }
-.badge:is(.sev-note, .sev-info) {
+.badge:is(.sev-info, .sev-note, .sev-information) {
   color: #3b82f6;
   border-color: color-mix(in srgb, #3b82f6 22%, transparent);
   background: color-mix(in srgb, #3b82f6 10%, transparent);

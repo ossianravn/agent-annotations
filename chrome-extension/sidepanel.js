@@ -10,6 +10,8 @@ const $ = (id) => document.getElementById(id);
 
 const state = {
   annotateEnabled: false,
+  isSending: false,
+  lockedTabId: null,
   activeTab: null,
   activeUrl: null,
   routeKey: null,
@@ -117,8 +119,20 @@ async function getActiveTab() {
   return tabs && tabs[0] ? tabs[0] : null;
 }
 
+async function getLockedTab() {
+  if (!state.lockedTabId) return await getActiveTab();
+  try {
+    return await chrome.tabs.get(state.lockedTabId);
+  } catch {
+    // Tab closed or not available; fall back to current active and re-lock.
+    const t = await getActiveTab();
+    if (t?.id) state.lockedTabId = t.id;
+    return t;
+  }
+}
+
 async function refreshActiveTabInfo() {
-  const tab = await getActiveTab();
+  const tab = await getLockedTab();
   state.activeTab = tab;
   state.activeUrl = tab && tab.url ? tab.url : null;
   state.routeKey = state.activeUrl ? routeKeyFromUrl(state.activeUrl) : null;
@@ -161,10 +175,11 @@ function formatBytes(bytes) {
 }
 
 function sanitizeFilename(name) {
-  return (name || "asset")
+  const n = (name || "asset")
     .replace(/[^a-zA-Z0-9._-]+/g, "_")
     .replace(/_+/g, "_")
     .slice(0, 80);
+  return n.replace(/\.(png|jpe?g|webp|bin)(\.\1)+$/i, ".$1");
 }
 
 function makeAttachmentId() {
@@ -385,6 +400,7 @@ async function setAnnotateMode(enabled, opts = {}) {
 
 async function captureScreenshot() {
   if (!state.activeTab?.windowId) throw new Error("No active window.");
+  if (!state.activeTab?.active) throw new Error("Switch to the locked tab to capture a screenshot.");
   const resp = await chrome.runtime.sendMessage({
     type: "CAPTURE_VISIBLE_TAB",
     windowId: state.activeTab.windowId
@@ -550,7 +566,7 @@ function renderList() {
   if (!state.openAnnotations.length) {
     const div = document.createElement("div");
     div.className = "muted tiny";
-    div.textContent = "No open annotations for this page.";
+    div.textContent = "No unresolved annotations for this page.";
     root.appendChild(div);
     return;
   }
@@ -568,15 +584,22 @@ function renderList() {
 
     const sev = document.createElement("span");
     sev.className = "badge";
-    const raw = String(ann.severity || "note").toLowerCase();
+    const raw = String(ann.severity || "info").toLowerCase();
+    // Back-compat: previous values were "note" and "question".
     const sevVal =
-      raw === "warning" ? "question" :
-      raw === "info" ? "note" :
+      raw === "warning" || raw === "question" ? "feature" :
+      raw === "note" || raw === "information" ? "info" :
+      raw === "new feature" ? "feature" :
       raw;
-    if (sevVal === "bug" || sevVal === "question" || sevVal === "note") {
+    const sevLabel =
+      sevVal === "bug" ? "Bug" :
+      sevVal === "feature" ? "New feature" :
+      sevVal === "info" ? "Information" :
+      sevVal;
+    if (sevVal === "bug" || sevVal === "feature" || sevVal === "info") {
       sev.classList.add(`sev-${sevVal}`);
     }
-    sev.textContent = sevVal;
+    sev.textContent = sevLabel;
     badges.appendChild(sev);
 
     if (ann.tags && ann.tags.length) {
@@ -707,7 +730,7 @@ async function refreshList() {
 function updateSendEnabled() {
   const hasElement = !!state.selectedElement;
   const hasComment = !!$("comment").value.trim();
-  $("send").disabled = !(hasElement && hasComment);
+  $("send").disabled = state.isSending || !(hasElement && hasComment);
 }
 
 function bindUI() {
@@ -788,27 +811,36 @@ function bindUI() {
   });
 
   $("send").addEventListener("click", async () => {
-    await withControlFeedback($("send"), async () => {
-      await saveSettings();
-      await refreshActiveTabInfo();
-      const resp = await postAnnotation();
-      // Clear selection after a successful send so users don't accidentally
-      // "reuse" the previous element in the next report.
-      state.selectedElement = null;
-      renderSelectedElement();
-      try {
-        if (state.activeTab?.id) {
-          chrome.tabs.sendMessage(state.activeTab.id, { type: "ANNOTATE_CLEAR_SELECTION" }).catch(() => {});
-        }
-      } catch {}
-      await setAnnotateMode(false);
-      $("comment").value = "";
-      state.attachments = [];
-      renderAttachments();
+    if (state.isSending) return;
+    state.isSending = true;
+    updateSendEnabled();
+    try {
+      await withControlFeedback($("send"), async () => {
+        await saveSettings();
+        await refreshActiveTabInfo();
+        const resp = await postAnnotation();
+        // Clear selection after a successful send so users don't accidentally
+        // "reuse" the previous element in the next report.
+        state.selectedElement = null;
+        renderSelectedElement();
+        try {
+          if (state.activeTab?.id) {
+            chrome.tabs.sendMessage(state.activeTab.id, { type: "ANNOTATE_CLEAR_SELECTION" }).catch(() => {});
+          }
+        } catch {}
+        await setAnnotateMode(false);
+        $("comment").value = "";
+        state.attachments = [];
+        renderAttachments();
+        updateSendEnabled();
+        await refreshList();
+        return resp;
+      }, { busyText: "Sending…", okText: "Sent", errorText: "Failed", okMs: 900, restoreDisabled: false });
+    } catch {}
+    finally {
+      state.isSending = false;
       updateSendEnabled();
-      await refreshList();
-      return resp;
-    }, { busyText: "Sending…", okText: "Sent", errorText: "Failed", okMs: 900 }).catch(() => {});
+    }
   });
 
   $("refreshList").addEventListener("click", async () => {
@@ -824,7 +856,7 @@ function bindUI() {
       setSeverity(v);
     });
   }
-  setSeverity($("severity").value || "note");
+  setSeverity($("severity").value || "info");
 
   // Paste images into comment box -> attachment
   $("comment").addEventListener("paste", async (ev) => {
@@ -890,8 +922,11 @@ function bindUI() {
   });
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, sender) => {
   if (!msg || !msg.type) return;
+  const senderTabId = sender && sender.tab ? sender.tab.id : null;
+  const msgTabId = msg && msg.tabId ? msg.tabId : senderTabId;
+  if (state.lockedTabId && msgTabId && msgTabId !== state.lockedTabId) return;
 
   if (msg.type === "ANNOTATE_MODE_SYNC") {
     state.annotateEnabled = !!msg.enabled;
@@ -913,9 +948,35 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
+function bindLockedTabWatchers() {
+  // Keep route/list in sync as the locked tab navigates.
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (!state.lockedTabId || tabId !== state.lockedTabId) return;
+    if (!changeInfo.url && changeInfo.status !== "complete") return;
+    refreshActiveTabInfo().then(() => refreshList()).catch(() => {});
+  });
+
+  // If the locked tab closes, re-lock to the current active tab.
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    if (!state.lockedTabId || tabId !== state.lockedTabId) return;
+    state.lockedTabId = null;
+    state.selectedElement = null;
+    renderSelectedElement();
+    (async () => {
+      const t = await getActiveTab();
+      if (t?.id) state.lockedTabId = t.id;
+      await refreshActiveTabInfo();
+      await refreshList();
+    })().catch(() => {});
+  });
+}
+
 async function main() {
   await loadSettings();
+  bindLockedTabWatchers();
   bindUI();
+  const opener = await getActiveTab();
+  if (opener?.id) state.lockedTabId = opener.id;
   await refreshActiveTabInfo();
   await testConnection();
   await refreshList();

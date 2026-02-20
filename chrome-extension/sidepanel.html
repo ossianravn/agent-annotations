@@ -90,12 +90,12 @@
             <div class="section-label">Severity</div>
             <div class="pill-group" role="radiogroup" aria-label="Severity">
             <button class="pill-btn sev-bug" type="button" data-sev="bug">Bug</button>
-            <button class="pill-btn sev-question" type="button" data-sev="question">Question</button>
-            <button class="pill-btn sev-note" type="button" data-sev="note">Note</button>
+            <button class="pill-btn sev-feature" type="button" data-sev="feature">New feature</button>
+            <button class="pill-btn sev-info" type="button" data-sev="info">Information</button>
             </div>
             <select id="severity" class="sr-only" aria-label="Severity (hidden)">
-            <option value="note">note</option>
-            <option value="question">question</option>
+            <option value="info">info</option>
+            <option value="feature">feature</option>
             <option value="bug">bug</option>
             </select>
           </div>
@@ -103,7 +103,7 @@
 
       <section class="block">
         <div class="block-head">
-          <div class="section-label">Open on this page</div>
+          <div class="section-label">Unresolved annotations</div>
           <button id="refreshList" class="link-btn" type="button">Refresh</button>
         </div>
         <div id="list" class="list"></div>

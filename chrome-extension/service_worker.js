@@ -60,7 +60,7 @@ async function setAnnotateEnabledForActiveTab(enabled) {
     try {
       await chrome.tabs.sendMessage(tab.id, { type: "ANNOTATE_DISABLE" });
     } catch {}
-    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: false }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: false, tabId: tab.id }).catch(() => {});
     return { ok: true, enabled: false };
   }
 
@@ -74,11 +74,11 @@ async function setAnnotateEnabledForActiveTab(enabled) {
   try {
     await chrome.tabs.sendMessage(tab.id, { type: "ANNOTATE_ENABLE" });
     await chrome.storage.local.set({ annotateEnabled: true }).catch(() => {});
-    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: true }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: true, tabId: tab.id }).catch(() => {});
     return { ok: true, enabled: true };
   } catch (e) {
     await chrome.storage.local.set({ annotateEnabled: false }).catch(() => {});
-    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: false }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: false, tabId: tab.id }).catch(() => {});
     return { ok: false, error: String(e?.message || e) };
   }
 }
@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === "ANNOTATE_DISABLED_BY_PAGE") {
     chrome.storage.local.set({ annotateEnabled: false }).catch(() => {});
-    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: false }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "ANNOTATE_MODE_SYNC", enabled: false, tabId: sender?.tab?.id || null }).catch(() => {});
     sendResponse?.({ ok: true });
     return;
   }

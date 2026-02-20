@@ -128,9 +128,12 @@ function normalizeAssetFilename(rawName, mime, fallbackBase) {
   const desiredExt = extFromMime(mime);
   const base = safeName(rawName || fallbackBase);
   const lower = base.toLowerCase();
-  if (lower.endsWith(desiredExt)) return base;
-  if (/\.(png|jpe?g|webp|bin)$/i.test(base)) return base;
-  return base + desiredExt;
+  // If something upstream already doubled extensions (e.g. ".png.png"), normalize it.
+  const deduped = base.replace(/\.(png|jpe?g|webp|bin)(\.\1)+$/i, ".$1");
+  const dedupedLower = deduped.toLowerCase();
+  if (dedupedLower.endsWith(desiredExt)) return deduped;
+  if (/\.(png|jpe?g|webp|bin)$/i.test(deduped)) return deduped;
+  return deduped + desiredExt;
 }
 
 function generateId() {
@@ -215,6 +218,11 @@ async function handlePostAnnotation(req, res, token) {
 
   const id = ann.id && String(ann.id).trim() ? String(ann.id).trim() : generateId();
   const createdAt = ann.createdAt && String(ann.createdAt).trim() ? String(ann.createdAt).trim() : new Date().toISOString();
+  const severityRaw = String(ann.severity || "info").toLowerCase();
+  const severity =
+    severityRaw === "note" || severityRaw === "information" ? "info" :
+    severityRaw === "question" || severityRaw === "warning" || severityRaw === "new feature" ? "feature" :
+    severityRaw;
 
   const assets = Array.isArray(body.assets) ? body.assets : [];
   const attachments = [];
@@ -235,7 +243,7 @@ async function handlePostAnnotation(req, res, token) {
     attachments.push({ kind: "asset", mime, path: relPath });
   }
 
-  const stored = { ...ann, id, createdAt, status: "open", attachments };
+  const stored = { ...ann, id, createdAt, status: "open", severity, attachments };
   appendJsonlLine(inboxOpenFile, stored);
   sendJson(res, 200, { ok: true, id, attachments });
 }

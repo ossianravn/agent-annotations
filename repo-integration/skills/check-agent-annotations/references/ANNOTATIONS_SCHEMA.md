@@ -19,7 +19,7 @@ Resolved archive:
   "url": "http://localhost:3000/library",
   "routeKey": "http://localhost:3000/library",
   "status": "open",
-  "severity": "note",
+  "severity": "info",
   "tags": ["ui", "copy"],
 
   "element": {
