@@ -187,3 +187,22 @@ Browser validation should only happen if the **user explicitly asks**, and only 
 
 - `.tools/` is intentionally a **process tool** folder.
 - In most repos you’ll want to ignore `.agent-annotations/`; copy `.gitignore.snippet` into your repo’s `.gitignore`.
+
+---
+
+## Maintainers: releasing
+
+1. Bump versions to `X.Y.Z` in:
+   - `chrome-extension/manifest.json`
+   - `packages/agent-annotations/package.json`
+   - `packages/agent-annotations-receiver/package.json`
+2. Commit the version bump.
+3. Tag and push:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+This triggers GitHub Actions to:
+- build and attach the extension zip to a GitHub Release
+- publish `agent-annotations` and `agent-annotations-receiver` to npm (requires the `NPM_TOKEN` GitHub Actions secret)

@@ -1,0 +1,105 @@
+name: Publish npm packages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to publish (tag like v0.3.9)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure NPM token is configured
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "Missing NPM_TOKEN secret. Add it in: GitHub repo → Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Verify versions match tag (when tag is vX.Y.Z)
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+
+          REF_NAME="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${INPUT_REF}" ]; then
+            REF_NAME="${INPUT_REF}"
+          fi
+
+          if [[ "${REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            EXPECTED="${REF_NAME#v}"
+            echo "Expected version: ${EXPECTED}"
+
+            MANIFEST_VERSION="$(node -p \"require('./chrome-extension/manifest.json').version\")"
+            AA_VERSION="$(node -p \"require('./packages/agent-annotations/package.json').version\")"
+            RX_VERSION="$(node -p \"require('./packages/agent-annotations-receiver/package.json').version\")"
+
+            if [ "${MANIFEST_VERSION}" != "${EXPECTED}" ]; then
+              echo "chrome-extension/manifest.json version mismatch: ${MANIFEST_VERSION} (expected ${EXPECTED})"
+              exit 1
+            fi
+            if [ "${AA_VERSION}" != "${EXPECTED}" ]; then
+              echo "packages/agent-annotations/package.json version mismatch: ${AA_VERSION} (expected ${EXPECTED})"
+              exit 1
+            fi
+            if [ "${RX_VERSION}" != "${EXPECTED}" ]; then
+              echo "packages/agent-annotations-receiver/package.json version mismatch: ${RX_VERSION} (expected ${EXPECTED})"
+              exit 1
+            fi
+          else
+            echo "Ref is not a semver tag (vX.Y.Z). Skipping tag/version check."
+          fi
+
+      - name: Publish packages (skip if already exists)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          publish_one() {
+            local dir="$1"
+            local name version
+            name="$(node -p \"require('./${dir}/package.json').name\")"
+            version="$(node -p \"require('./${dir}/package.json').version\")"
+
+            echo ""
+            echo "==> ${name}@${version}"
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "Already published; skipping."
+              return 0
+            fi
+
+            (cd "${dir}" && npm publish --access public)
+          }
+
+          publish_one "packages/agent-annotations"
+          publish_one "packages/agent-annotations-receiver"
+
