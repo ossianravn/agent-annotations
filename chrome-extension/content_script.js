@@ -215,6 +215,33 @@
     }
   }
 
+  function stableAttrSelector(el, tag) {
+    if (!el) return null;
+    if (tag === "a") {
+      const href = getAttr(el, "href");
+      if (href && href.length <= 220 && !href.startsWith("javascript:")) {
+        return `${tag}[href="${cssEscapeAttrValue(href)}"]`;
+      }
+    }
+    if (tag === "button") {
+      const type = (getAttr(el, "type") || "").toLowerCase();
+      if (type && type !== "submit") {
+        return `${tag}[type="${cssEscapeAttrValue(type)}"]`;
+      }
+    }
+    if (tag === "input") {
+      const name = getAttr(el, "name");
+      if (name && name.length <= 120) {
+        return `${tag}[name="${cssEscapeAttrValue(name)}"]`;
+      }
+      const type = (getAttr(el, "type") || "").toLowerCase();
+      if (type && type !== "text") {
+        return `${tag}[type="${cssEscapeAttrValue(type)}"]`;
+      }
+    }
+    return null;
+  }
+
   function buildSegment(el) {
     if (!el || el.nodeType !== 1) return null;
     const tag = (el.tagName || "").toLowerCase();
@@ -228,6 +255,13 @@
     const classes = candidateClasses(el);
 
     let seg = tag || "*";
+
+    const stableAttr = stableAttrSelector(el, seg);
+    if (stableAttr) {
+      const n = siblingMatchCount(parent, stableAttr);
+      if (n != null && n <= 3) seg = stableAttr;
+    }
+
     if (classes.length) {
       const scored = [];
       for (const cls of classes) {
@@ -272,6 +306,13 @@
 
     const parts = [];
     let cur = el;
+    let firstUnique = null;
+    let deepestUnique = null;
+
+    const segCount = (sel) => String(sel || "").split(">").length;
+    const nthCount = (sel) => (String(sel || "").match(/:nth-of-type\(/g) || []).length;
+    const hasAnchor = (sel) => /[#\[]/.test(String(sel || ""));
+
     for (let depth = 0; depth < 12 && cur && cur.nodeType === 1; depth++) {
       const seg = buildSegment(cur);
       if (!seg) break;
@@ -280,14 +321,31 @@
       const selector = parts.join(" > ");
       try {
         const matches = document.querySelectorAll(selector);
-        if (matches.length === 1) return selector;
+        if (matches.length === 1) {
+          if (!firstUnique) firstUnique = selector;
+          deepestUnique = selector;
+          // Don't let selectors grow unbounded.
+          if (selector.length > 320) break;
+        }
       } catch {}
 
       if (cur.id || getStableTestAttr(cur)) break;
       cur = cur.parentElement;
     }
 
-    return parts.length ? parts.join(" > ") : null;
+    if (firstUnique && deepestUnique) {
+      // Prefer a more contextual selector when the unique selector is too short/weak.
+      // Example: "a.inline-flex" -> "body > ... > a.inline-flex"
+      const firstSegs = segCount(firstUnique);
+      const deepSegs = segCount(deepestUnique);
+      const preferDeep =
+        (firstSegs <= 1 && deepSegs >= 3 && deepestUnique.length <= 240) ||
+        (nthCount(firstUnique) > nthCount(deepestUnique) && deepestUnique.length <= 280) ||
+        (!hasAnchor(firstUnique) && hasAnchor(deepestUnique) && deepestUnique.length <= 280);
+      return preferDeep ? deepestUnique : firstUnique;
+    }
+
+    return firstUnique || deepestUnique || (parts.length ? parts.join(" > ") : null);
   }
 
   function buildXPath(el) {
