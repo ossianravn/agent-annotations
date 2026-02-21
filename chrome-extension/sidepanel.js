@@ -965,6 +965,9 @@ function bindLockedTabWatchers() {
     (async () => {
       const t = await getActiveTab();
       if (t?.id) state.lockedTabId = t.id;
+      if (state.lockedTabId) {
+        chrome.runtime.sendMessage({ type: "SIDEPANEL_LOCK_TAB", tabId: state.lockedTabId }).catch(() => {});
+      }
       await refreshActiveTabInfo();
       await refreshList();
     })().catch(() => {});
@@ -977,6 +980,9 @@ async function main() {
   bindUI();
   const opener = await getActiveTab();
   if (opener?.id) state.lockedTabId = opener.id;
+  if (state.lockedTabId) {
+    chrome.runtime.sendMessage({ type: "SIDEPANEL_LOCK_TAB", tabId: state.lockedTabId }).catch(() => {});
+  }
   await refreshActiveTabInfo();
   await testConnection();
   await refreshList();
