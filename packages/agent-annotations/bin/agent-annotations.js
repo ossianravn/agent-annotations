@@ -15,7 +15,7 @@
  *   pnpm dlx agent-annotations start [--port 8787]
  *
  * This command copies template files into the current repository:
- * - Optional: .tools/agent-annotations-receiver.js (local receiver launcher)
+ * - Optional: .tools/agent-annotations-receiver.cjs (local receiver launcher)
  * - Optional: an Agent Skills-compatible skill folder (check-agent-annotations)
  * - Optional: Copilot instruction file snippet
  */
@@ -44,7 +44,7 @@ Options:
               none  -> do not install any skill/instructions
 
   --receiver  Install the local receiver launcher into the repo (default: repo)
-              repo  -> copy .tools/agent-annotations-receiver.js into this repo
+              repo  -> copy .tools/agent-annotations-receiver.cjs into this repo
               none  -> do not copy receiver files
 
   --port      Receiver port (default: 8787)
@@ -113,14 +113,46 @@ function tryRepoRoot() {
 }
 
 function receiverScriptPath(repoRoot) {
+  const cjs = path.join(repoRoot, ".tools", "agent-annotations-receiver.cjs");
+  if (fs.existsSync(cjs)) return cjs;
   return path.join(repoRoot, ".tools", "agent-annotations-receiver.js");
 }
 
+function repoIsEsm(repoRoot) {
+  try {
+    const p = path.join(repoRoot, "package.json");
+    if (!fs.existsSync(p)) return false;
+    const pkg = JSON.parse(fs.readFileSync(p, "utf8"));
+    return pkg && pkg.type === "module";
+  } catch {
+    return false;
+  }
+}
+
 function startReceiver({ repoRoot, port, host, baseUrl }) {
-  const script = receiverScriptPath(repoRoot);
-  if (!fs.existsSync(script)) {
+  const toolsDir = path.join(repoRoot, ".tools");
+  const scriptCjs = path.join(toolsDir, "agent-annotations-receiver.cjs");
+  const scriptJs = path.join(toolsDir, "agent-annotations-receiver.js");
+
+  let script = null;
+  if (fs.existsSync(scriptCjs)) {
+    script = scriptCjs;
+  } else if (fs.existsSync(scriptJs)) {
+    // If the repo is ESM, .js launchers may crash (require is undefined).
+    // Install the .cjs launcher if the templates exist in this package.
+    if (repoIsEsm(repoRoot)) {
+      const templatesRoot = path.join(__dirname, "..", "templates", "repo-integration");
+      const toolsSrc = path.join(templatesRoot, ".tools");
+      try {
+        copyFile(path.join(toolsSrc, "agent-annotations-receiver.cjs"), scriptCjs, false);
+        copyFile(path.join(toolsSrc, "annotation-receiver.cjs"), path.join(toolsDir, "annotation-receiver.cjs"), false);
+      } catch {}
+    }
+    if (fs.existsSync(scriptCjs)) script = scriptCjs;
+    else script = scriptJs;
+  } else {
     console.error("");
-    console.error("Receiver launcher not found:", script);
+    console.error("Receiver launcher not found in:", toolsDir);
     console.error("Run setup first to install it:");
     console.error("  pnpm dlx agent-annotations setup");
     console.error("");

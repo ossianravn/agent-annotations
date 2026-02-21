@@ -14,5 +14,5 @@ If the user explicitly asks to validate in a browser and a browser automation to
 ## Local receiver (run by the user)
 - The receiver is a user-run process. Do NOT start long-running servers unless asked.
 - Run from repo root:
-  - `node .tools/agent-annotations-receiver.js --port 8787`
+  - `node .tools/agent-annotations-receiver.cjs --port 8787`
   - or `pnpm dlx agent-annotations-receiver --port 8787`

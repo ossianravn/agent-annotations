@@ -43,7 +43,7 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 
 What `setup` does:
 - Installs the skill/instructions into the repo (so your agent will read `.agent-annotations/`)
-- Installs `.tools/agent-annotations-receiver.js` and starts the receiver (writes `.agent-annotations/` into the repo)
+- Installs `.tools/agent-annotations-receiver.cjs` and starts the receiver (writes `.agent-annotations/` into the repo)
 
 ---
 
