@@ -12,6 +12,7 @@ on:
         default: ""
 
 permissions:
+  id-token: write
   contents: read
 
 concurrency:
@@ -33,15 +34,11 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Ensure NPM token is configured
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Upgrade npm for trusted publishing
         run: |
           set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "Missing NPM_TOKEN secret. Add it in: GitHub repo → Settings → Secrets and variables → Actions."
-            exit 1
-          fi
+          npm install -g npm@^11.5.1
+          npm --version
 
       - name: Verify versions match tag (when tag is vX.Y.Z)
         env:
@@ -79,8 +76,6 @@ jobs:
           fi
 
       - name: Publish packages (skip if already exists)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -102,4 +97,3 @@ jobs:
 
           publish_one "packages/agent-annotations"
           publish_one "packages/agent-annotations-receiver"
-

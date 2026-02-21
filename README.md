@@ -205,4 +205,4 @@ Browser validation should only happen if the **user explicitly asks**, and only 
 
 This triggers GitHub Actions to:
 - build and attach the extension zip to a GitHub Release
-- publish `agent-annotations` and `agent-annotations-receiver` to npm (requires the `NPM_TOKEN` GitHub Actions secret)
+- publish `agent-annotations` and `agent-annotations-receiver` to npm (via npm Trusted Publishers)
