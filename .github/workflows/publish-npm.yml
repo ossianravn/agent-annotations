@@ -55,9 +55,9 @@ jobs:
             EXPECTED="${REF_NAME#v}"
             echo "Expected version: ${EXPECTED}"
 
-            MANIFEST_VERSION="$(node -p \"require('./chrome-extension/manifest.json').version\")"
-            AA_VERSION="$(node -p \"require('./packages/agent-annotations/package.json').version\")"
-            RX_VERSION="$(node -p \"require('./packages/agent-annotations-receiver/package.json').version\")"
+            MANIFEST_VERSION="$(node -p 'require("./chrome-extension/manifest.json").version')"
+            AA_VERSION="$(node -p 'require("./packages/agent-annotations/package.json").version')"
+            RX_VERSION="$(node -p 'require("./packages/agent-annotations-receiver/package.json").version')"
 
             if [ "${MANIFEST_VERSION}" != "${EXPECTED}" ]; then
               echo "chrome-extension/manifest.json version mismatch: ${MANIFEST_VERSION} (expected ${EXPECTED})"
@@ -82,8 +82,8 @@ jobs:
           publish_one() {
             local dir="$1"
             local name version
-            name="$(node -p \"require('./${dir}/package.json').name\")"
-            version="$(node -p \"require('./${dir}/package.json').version\")"
+            name=$(node -p "require('./${dir}/package.json').name")
+            version=$(node -p "require('./${dir}/package.json').version")
 
             echo ""
             echo "==> ${name}@${version}"
