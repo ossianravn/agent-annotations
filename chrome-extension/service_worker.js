@@ -3,85 +3,122 @@
  * - Opens the side panel on action click
  * - Captures screenshots on demand
  */
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((err) => console.error("sidePanel.setPanelBehavior failed:", err));
+const panelStateByWindowId = new Map(); // windowId -> { tabId, open }
 
-  chrome.storage.local.set({ annotateEnabled: false }).catch(() => {});
-});
+function hasSidePanelOpen() {
+  return !!(chrome.sidePanel && typeof chrome.sidePanel.open === "function");
+}
 
-let lockedPanelTabId = null;
+function hasSidePanelClose() {
+  return !!(chrome.sidePanel && typeof chrome.sidePanel.close === "function");
+}
 
-async function getSessionValue(key) {
-  try {
-    if (chrome.storage.session) {
-      const v = await chrome.storage.session.get([key]);
-      return v ? v[key] : null;
+async function configureSidePanelBehavior() {
+  if (!chrome.sidePanel) return;
+
+  // Prefer handling action clicks ourselves so we can enable the panel for the
+  // clicked tab before opening it.
+  if (hasSidePanelOpen()) {
+    try {
+      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+    } catch (err) {
+      console.warn("sidePanel.setPanelBehavior failed:", err);
     }
-  } catch {}
-  try {
-    const v = await chrome.storage.local.get([key]);
-    return v ? v[key] : null;
-  } catch {}
-  return null;
-}
-
-async function setSessionValue(key, value) {
-  try {
-    if (chrome.storage.session) {
-      await chrome.storage.session.set({ [key]: value });
-      return;
+    // Disable the panel by default so it doesn't follow the active tab.
+    try {
+      await chrome.sidePanel.setOptions({ enabled: false });
+    } catch (err) {
+      console.warn("sidePanel.setOptions(default) failed:", err);
     }
-  } catch {}
-  try {
-    await chrome.storage.local.set({ [key]: value });
-  } catch {}
-}
+    return;
+  }
 
-async function removeSessionValue(key) {
+  // Fallback: Older Chrome without chrome.sidePanel.open().
   try {
-    if (chrome.storage.session) {
-      await chrome.storage.session.remove([key]);
-      return;
-    }
-  } catch {}
-  try {
-    await chrome.storage.local.remove([key]);
-  } catch {}
-}
-
-async function setSidePanelEnabledForTab(tabId, enabled) {
-  if (!tabId) return;
-  try {
-    await chrome.sidePanel.setOptions({ tabId, enabled: !!enabled });
-  } catch {}
-}
-
-async function applySidePanelLock(tabId) {
-  if (!tabId) return;
-  let tab = null;
-  try { tab = await chrome.tabs.get(tabId); } catch {}
-  if (!tab) return;
-
-  const tabs = await chrome.tabs.query({ windowId: tab.windowId });
-  for (const t of tabs) {
-    if (!t?.id) continue;
-    await setSidePanelEnabledForTab(t.id, t.id === tabId);
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  } catch (err) {
+    console.warn("sidePanel.setPanelBehavior failed:", err);
   }
 }
 
-async function clearSidePanelLock() {
-  lockedPanelTabId = null;
-  await removeSessionValue("lockedPanelTabId");
-  // Restore defaults by enabling for all tabs (best-effort).
+chrome.runtime.onInstalled.addListener(() => {
+  configureSidePanelBehavior().catch(() => {});
+  chrome.storage.local.set({ annotateEnabled: false }).catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  configureSidePanelBehavior().catch(() => {});
+});
+
+configureSidePanelBehavior().catch(() => {});
+
+async function setSidePanelOptionsForTab(tabId, options) {
+  if (!tabId || !chrome.sidePanel) return;
   try {
-    const tabs = await chrome.tabs.query({});
-    for (const t of tabs) {
-      if (!t?.id) continue;
-      await setSidePanelEnabledForTab(t.id, true);
-    }
+    await chrome.sidePanel.setOptions({ tabId, ...options });
+  } catch (e) {
+    console.warn("sidePanel.setOptions failed:", e);
+  }
+}
+
+async function lockSidePanelToTab(tabId) {
+  if (!tabId) return { ok: false, error: "Missing tabId." };
+  let tab = null;
+  try {
+    tab = await chrome.tabs.get(tabId);
   } catch {}
+  if (!tab?.id) return { ok: false, error: "Tab not found." };
+
+  const windowId = tab.windowId;
+  if (windowId == null) return { ok: false, error: "Missing windowId." };
+
+  let tabs = [];
+  try {
+    tabs = await chrome.tabs.query({ windowId });
+  } catch {}
+
+  const ops = [];
+  for (const t of tabs) {
+    if (!t?.id) continue;
+    if (t.id === tabId) {
+      ops.push(setSidePanelOptionsForTab(t.id, { path: "sidepanel.html", enabled: true }));
+    } else {
+      ops.push(setSidePanelOptionsForTab(t.id, { enabled: false }));
+    }
+  }
+  await Promise.all(ops);
+  return { ok: true, tabId, windowId };
+}
+
+async function openSidePanelForTab(tabId) {
+  if (!hasSidePanelOpen()) return;
+  const locked = await lockSidePanelToTab(tabId);
+  if (!locked.ok) return;
+  try {
+    await chrome.sidePanel.open({ tabId });
+  } catch (e) {
+    console.warn("sidePanel.open failed:", e);
+  }
+}
+
+async function closeSidePanelForTab(tabId, windowId) {
+  if (!chrome.sidePanel) return;
+
+  if (hasSidePanelClose()) {
+    try {
+      await chrome.sidePanel.close({ tabId });
+      return;
+    } catch (e) {
+      // Some Chrome versions reject close({tabId}) when only a global panel is open.
+      try {
+        if (windowId != null) await chrome.sidePanel.close({ windowId });
+        return;
+      } catch {}
+    }
+  }
+
+  // Fallback: disabling the panel closes/hides it for this tab.
+  await setSidePanelOptionsForTab(tabId, { enabled: false });
 }
 
 function captureVisibleTab(windowId) {
@@ -168,20 +205,6 @@ chrome.commands.onCommand.addListener((command) => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return; // don't keep channel open
 
-  if (msg.type === "SIDEPANEL_LOCK_TAB") {
-    const tabId = msg && msg.tabId ? Number(msg.tabId) : null;
-    if (!tabId || !Number.isFinite(tabId)) {
-      sendResponse?.({ ok: false, error: "Missing tabId." });
-      return;
-    }
-    lockedPanelTabId = tabId;
-    setSessionValue("lockedPanelTabId", tabId).catch(() => {});
-    applySidePanelLock(tabId).then(() => sendResponse?.({ ok: true, tabId })).catch((e) => {
-      sendResponse?.({ ok: false, error: String(e?.message || e) });
-    });
-    return true;
-  }
-
   if (msg.type === "CAPTURE_VISIBLE_TAB") {
     (async () => {
       try {
@@ -209,26 +232,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // For all other messages, do not return true (prevents hanging message ports).
 });
 
-chrome.tabs.onActivated.addListener((info) => {
-  if (!lockedPanelTabId) return;
-  const tabId = info && info.tabId ? info.tabId : null;
-  if (!tabId) return;
-  if (tabId === lockedPanelTabId) {
-    setSidePanelEnabledForTab(tabId, true).catch(() => {});
-    return;
-  }
-  setSidePanelEnabledForTab(tabId, false).catch(() => {});
-});
+if (chrome.sidePanel?.onOpened?.addListener) {
+  chrome.sidePanel.onOpened.addListener((info) => {
+    if (!info || typeof info.windowId !== "number") return;
+    panelStateByWindowId.set(info.windowId, { tabId: info.tabId || null, open: true });
+  });
+}
 
-chrome.tabs.onRemoved.addListener((tabId) => {
-  if (!lockedPanelTabId || tabId !== lockedPanelTabId) return;
-  clearSidePanelLock().catch(() => {});
-});
+if (chrome.sidePanel?.onClosed?.addListener) {
+  chrome.sidePanel.onClosed.addListener((info) => {
+    if (!info || typeof info.windowId !== "number") return;
+    panelStateByWindowId.set(info.windowId, { tabId: info.tabId || null, open: false });
+  });
+}
 
-(async () => {
-  const saved = await getSessionValue("lockedPanelTabId");
-  if (saved && Number.isFinite(Number(saved))) {
-    lockedPanelTabId = Number(saved);
-    await applySidePanelLock(lockedPanelTabId);
-  }
-})().catch(() => {});
+chrome.action.onClicked.addListener((tab) => {
+  (async () => {
+    if (!hasSidePanelOpen()) return;
+    const tabId = tab?.id;
+    const windowId = tab?.windowId;
+    if (!tabId || windowId == null) return;
+
+    const cur = panelStateByWindowId.get(windowId);
+    const isOpenOnThisTab = !!(cur && cur.open && cur.tabId === tabId);
+
+    if (isOpenOnThisTab) {
+      await closeSidePanelForTab(tabId, windowId);
+      panelStateByWindowId.set(windowId, { tabId, open: false });
+      return;
+    }
+
+    await openSidePanelForTab(tabId);
+    panelStateByWindowId.set(windowId, { tabId, open: true });
+  })().catch((e) => console.warn("action.onClicked failed:", e));
+});
