@@ -90,15 +90,16 @@ async function lockSidePanelToTab(tabId) {
   return { ok: true, tabId, windowId };
 }
 
-async function openSidePanelForTab(tabId) {
+function openSidePanelForTab(tabId) {
   if (!hasSidePanelOpen()) return;
-  const locked = await lockSidePanelToTab(tabId);
-  if (!locked.ok) return;
-  try {
-    await chrome.sidePanel.open({ tabId });
-  } catch (e) {
-    console.warn("sidePanel.open failed:", e);
-  }
+
+  // Important: chrome.sidePanel.open() must be called directly in response to a user action.
+  // Do not await before calling it (the user gesture will be lost).
+  setSidePanelOptionsForTab(tabId, { path: "sidepanel.html", enabled: true });
+  chrome.sidePanel.open({ tabId }).catch((e) => console.warn("sidePanel.open failed:", e));
+
+  // Best-effort: hide the panel on other tabs in the same window after opening.
+  lockSidePanelToTab(tabId).catch(() => {});
 }
 
 async function closeSidePanelForTab(tabId, windowId) {
@@ -235,34 +236,40 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 if (chrome.sidePanel?.onOpened?.addListener) {
   chrome.sidePanel.onOpened.addListener((info) => {
     if (!info || typeof info.windowId !== "number") return;
-    panelStateByWindowId.set(info.windowId, { tabId: info.tabId || null, open: true });
+    const prev = panelStateByWindowId.get(info.windowId);
+    const tabId = typeof info.tabId === "number" ? info.tabId : (prev?.tabId || null);
+    panelStateByWindowId.set(info.windowId, { tabId, open: true });
   });
 }
 
 if (chrome.sidePanel?.onClosed?.addListener) {
   chrome.sidePanel.onClosed.addListener((info) => {
     if (!info || typeof info.windowId !== "number") return;
-    panelStateByWindowId.set(info.windowId, { tabId: info.tabId || null, open: false });
+    const prev = panelStateByWindowId.get(info.windowId);
+    const tabId = typeof info.tabId === "number" ? info.tabId : (prev?.tabId || null);
+    panelStateByWindowId.set(info.windowId, { tabId, open: false });
   });
 }
 
 chrome.action.onClicked.addListener((tab) => {
-  (async () => {
+  try {
     if (!hasSidePanelOpen()) return;
     const tabId = tab?.id;
     const windowId = tab?.windowId;
     if (!tabId || windowId == null) return;
 
     const cur = panelStateByWindowId.get(windowId);
-    const isOpenOnThisTab = !!(cur && cur.open && cur.tabId === tabId);
+    const isOpenOnThisTab = !!(cur && cur.open && (!cur.tabId || cur.tabId === tabId));
 
     if (isOpenOnThisTab) {
-      await closeSidePanelForTab(tabId, windowId);
+      closeSidePanelForTab(tabId, windowId).catch((e) => console.warn("sidePanel.close failed:", e));
       panelStateByWindowId.set(windowId, { tabId, open: false });
       return;
     }
 
-    await openSidePanelForTab(tabId);
+    openSidePanelForTab(tabId);
     panelStateByWindowId.set(windowId, { tabId, open: true });
-  })().catch((e) => console.warn("action.onClicked failed:", e));
+  } catch (e) {
+    console.warn("action.onClicked failed:", e);
+  }
 });

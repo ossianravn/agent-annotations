@@ -1,6 +1,6 @@
 {
   "name": "agent-annotations",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "private": false,
   "description": "Init scaffold for Agent Annotations (copies receiver + optional agent skills/instructions into a repo).",
   "keywords": [
