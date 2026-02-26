@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Agent Annotations",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "A right-side panel for DOM-based UI annotations and an agent-friendly inbox.",
   "permissions": [
     "sidePanel",

@@ -28,6 +28,11 @@ const state = {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function setText(id, text) {
+  const el = $(id);
+  if (el) el.textContent = String(text ?? "");
+}
+
 function routeKeyFromUrl(urlStr) {
   try {
     const u = new URL(urlStr);
@@ -46,51 +51,31 @@ function shortUrl(urlStr) {
   }
 }
 
-function setConnDot(ok) {
-  const el = $("connDot");
-  const color = ok ? "#22c55e" : "#ef4444";
-  el.style.background = color;
-  el.style.color = color; // used by box-shadow in CSS (currentColor)
-
-  const txt = $("connText");
-  if (txt) {
-    txt.textContent = ok ? "Connected" : "Not reachable";
-    txt.style.color = ok ? "#16a34a" : "#dc2626";
-  }
-}
-
 function setConnStatus(status) {
-  const el = $("connDot");
-  const txt = $("connText");
+  const label = $("connStatusLabel");
 
   const s = String(status || "offline");
   const isOk = s === "ok";
   const isWarn = s === "unauthorized" || s === "missing-token";
 
-  const dotColor =
-    isOk ? "#22c55e" : // green
-    isWarn ? "#f59e0b" : // amber
-    "#ef4444"; // red
-
   const text =
+    s === "ok" ? "[CONNECTED]" :
+    s === "missing-token" ? "[TOKEN MISSING]" :
+    s === "unauthorized" ? "[BAD TOKEN]" :
+    "[OFFLINE]";
+
+  const title =
     s === "ok" ? "Connected" :
     s === "missing-token" ? "Token missing" :
     s === "unauthorized" ? "Bad token" :
     "Not reachable";
 
-  const textColor =
-    s === "ok" ? "#16a34a" :
-    isWarn ? "#b45309" :
-    "#dc2626";
-
-  if (el) {
-    el.style.background = dotColor;
-    el.style.color = dotColor; // used by box-shadow in CSS (currentColor)
-  }
-  if (txt) {
-    txt.textContent = text;
-    txt.style.color = textColor;
-  }
+  if (!label) return;
+  label.textContent = text;
+  label.title = title;
+  label.classList.toggle("is-ok", isOk);
+  label.classList.toggle("is-warn", isWarn);
+  label.classList.toggle("is-err", !(isOk || isWarn));
 }
 
 async function loadSettings() {
@@ -136,7 +121,8 @@ async function refreshActiveTabInfo() {
   state.activeTab = tab;
   state.activeUrl = tab && tab.url ? tab.url : null;
   state.routeKey = state.activeUrl ? routeKeyFromUrl(state.activeUrl) : null;
-  $("activeRoute").textContent = state.activeUrl ? shortUrl(state.activeUrl) : "No active tab";
+  const short = state.activeUrl ? shortUrl(state.activeUrl) : "—";
+  setText("activeRouteDisplay", `URL: ${short}`);
 }
 
 function elementSummary(sel) {
@@ -150,7 +136,10 @@ function elementSummary(sel) {
 }
 
 function renderSelectedElement() {
-  $("selectedSummary").textContent = elementSummary(state.selectedElement);
+  const s = elementSummary(state.selectedElement);
+  const el = $("selectedSummary");
+  el.textContent = state.selectedElement ? s : "[ NONE ]";
+  el.classList.toggle("is-none", !state.selectedElement);
   const clearBtn = $("clearSelected");
   if (clearBtn) clearBtn.hidden = !state.selectedElement;
   updateSendEnabled();
@@ -200,7 +189,9 @@ function removeAttachment(id) {
 
 function renderAttachments() {
   const root = $("attachments");
+  const section = $("attachmentsSection");
   root.innerHTML = "";
+  if (section) section.hidden = !state.attachments.length;
   if (!state.attachments.length) return;
 
   for (const att of state.attachments) {
@@ -265,7 +256,7 @@ function renderAttachments() {
 
 function getControlTextEl(control) {
   if (!control) return null;
-  return control.querySelector?.(".btn-text, .send-text") || null;
+  return control.querySelector?.(".btn-text, .action-text, .send-text") || null;
 }
 
 function getControlText(control) {
@@ -291,6 +282,19 @@ function flashAnnotateError() {
   void sw.offsetWidth;
   sw.classList.add("is-error");
   setTimeout(() => sw.classList.remove("is-error"), 700);
+}
+
+function showAnnotateError(msg) {
+  const el = $("annotateError");
+  if (!el) return;
+  const m = String(msg || "");
+  if (!m) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.textContent = `! ${m}`;
 }
 
 async function withControlFeedback(control, task, opts = {}) {
@@ -366,6 +370,7 @@ async function setAnnotateMode(enabled, opts = {}) {
   const { persist = true } = opts || {};
   state.annotateEnabled = enabled;
   $("annotateToggle").checked = enabled;
+  if (enabled) showAnnotateError("");
 
   if (persist) {
     try {
@@ -386,6 +391,7 @@ async function setAnnotateMode(enabled, opts = {}) {
     state.annotateEnabled = false;
     $("annotateToggle").checked = false;
     flashAnnotateError();
+    showAnnotateError("Could not enable annotate mode on this page.");
     return;
   }
 
@@ -395,6 +401,7 @@ async function setAnnotateMode(enabled, opts = {}) {
     state.annotateEnabled = false;
     $("annotateToggle").checked = false;
     flashAnnotateError();
+    showAnnotateError("Could not enable annotate mode on this page.");
   }
 }
 
@@ -546,6 +553,17 @@ async function testConnection(opts = {}) {
   }
 }
 
+function normalizedSeverity(rawVal) {
+  const raw = String(rawVal || "info").toLowerCase();
+  // Back-compat: previous values were "note" and "question".
+  return (
+    raw === "warning" || raw === "question" ? "feature" :
+    raw === "note" || raw === "information" ? "info" :
+    raw === "new feature" ? "feature" :
+    raw
+  );
+}
+
 async function getAnnotationsForRoute() {
   if (!state.routeKey) return [];
   const serverUrl = state.settings.serverUrl.replace(/\/$/, "");
@@ -566,7 +584,7 @@ function renderList() {
   if (!state.openAnnotations.length) {
     const div = document.createElement("div");
     div.className = "muted tiny";
-    div.textContent = "No unresolved annotations for this page.";
+    div.textContent = "No unresolved annotations.";
     root.appendChild(div);
     return;
   }
@@ -582,36 +600,32 @@ function renderList() {
     const badges = document.createElement("div");
     badges.className = "badges";
 
-    const sev = document.createElement("span");
-    sev.className = "badge";
-    const raw = String(ann.severity || "info").toLowerCase();
-    // Back-compat: previous values were "note" and "question".
-    const sevVal =
-      raw === "warning" || raw === "question" ? "feature" :
-      raw === "note" || raw === "information" ? "info" :
-      raw === "new feature" ? "feature" :
-      raw;
-    const sevLabel =
-      sevVal === "bug" ? "Bug" :
-      sevVal === "feature" ? "New feature" :
-      sevVal === "info" ? "Information" :
-      sevVal;
-    if (sevVal === "bug" || sevVal === "feature" || sevVal === "info") {
-      sev.classList.add(`sev-${sevVal}`);
-    }
-    sev.textContent = sevLabel;
-    badges.appendChild(sev);
+    const sevVal = normalizedSeverity(ann.severity);
+    const sevTag = document.createElement("span");
+    sevTag.className = "tag";
+
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.setAttribute("aria-hidden", "true");
+    sevTag.appendChild(dot);
+
+    sevTag.appendChild(document.createTextNode(
+      sevVal === "bug" ? "BUG" :
+      sevVal === "feature" ? "FEATURE" :
+      "REQUEST"
+    ));
+    badges.appendChild(sevTag);
 
     if (ann.tags && ann.tags.length) {
       const tag = document.createElement("span");
-      tag.className = "badge";
-      tag.textContent = ann.tags.slice(0, 2).join(", ");
+      tag.className = "tag";
+      tag.appendChild(document.createTextNode(ann.tags.slice(0, 2).join(", ")));
       badges.appendChild(tag);
     }
 
     const id = document.createElement("div");
     id.className = "id mono";
-    id.textContent = ann.id || "";
+    id.textContent = ann.id ? `[#${ann.id}]` : "";
 
     top.appendChild(badges);
     top.appendChild(id);
@@ -737,15 +751,41 @@ function bindUI() {
   function setSeverity(value) {
     const select = $("severity");
     select.value = value;
-    for (const b of document.querySelectorAll(".pill-btn[data-sev]")) {
+    for (const b of document.querySelectorAll(".sev-btn[data-sev]")) {
       b.classList.toggle("is-active", b.getAttribute("data-sev") === value);
     }
   }
+
+  $("openSettings")?.addEventListener("click", () => {
+    $("settingsHint").textContent = "";
+    const dlg = $("settingsDialog");
+    if (!dlg.open) dlg.showModal();
+  });
+
+  $("closeSettings")?.addEventListener("click", () => {
+    const dlg = $("settingsDialog");
+    if (dlg.open) dlg.close();
+  });
+
+  $("settingsDialog")?.addEventListener("click", (e) => {
+    // click outside closes
+    const dlg = $("settingsDialog");
+    const rect = dlg.getBoundingClientRect();
+    const inDialog = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (!inDialog && dlg.open) dlg.close();
+  });
+
+  $("showToken")?.addEventListener("change", () => {
+    const t = $("token");
+    if (!t) return;
+    t.type = $("showToken").checked ? "text" : "password";
+  });
 
   $("saveSettings").addEventListener("click", async () => {
     await withControlFeedback($("saveSettings"), async () => {
       await saveSettings();
       await testConnection({ throwOnFail: true });
+      $("settingsHint").textContent = "Saved.";
     }, { busyText: "Saving…", okText: "Saved", errorText: "Failed" }).catch(() => {});
   });
 
@@ -753,19 +793,13 @@ function bindUI() {
     await withControlFeedback($("testConn"), async () => {
       await saveSettings();
       await testConnection({ throwOnFail: true });
+      $("settingsHint").textContent = "Connected.";
     }, { busyText: "Testing…", okText: "Connected", errorText: "Not reachable" }).catch(() => {});
   });
 
   $("annotateToggle").addEventListener("change", async () => {
     await refreshActiveTabInfo();
     await setAnnotateMode($("annotateToggle").checked);
-  });
-
-  $("changeSelected").addEventListener("click", async () => {
-    await refreshActiveTabInfo();
-    if (!$("annotateToggle").checked) {
-      await setAnnotateMode(true);
-    }
   });
 
   $("clearSelected").addEventListener("click", async () => {
@@ -850,7 +884,7 @@ function bindUI() {
   $("comment").addEventListener("input", () => updateSendEnabled());
 
   // Severity pills -> hidden select
-  for (const btn of document.querySelectorAll(".pill-btn[data-sev]")) {
+  for (const btn of document.querySelectorAll(".sev-btn[data-sev]")) {
     btn.addEventListener("click", () => {
       const v = btn.getAttribute("data-sev") || "info";
       setSeverity(v);
