@@ -59,10 +59,10 @@ function setConnStatus(status) {
   const isWarn = s === "unauthorized" || s === "missing-token";
 
   const text =
-    s === "ok" ? "[CONNECTED]" :
-    s === "missing-token" ? "[TOKEN MISSING]" :
-    s === "unauthorized" ? "[BAD TOKEN]" :
-    "[OFFLINE]";
+    s === "ok" ? "CONNECTED" :
+    s === "missing-token" ? "TOKEN MISSING" :
+    s === "unauthorized" ? "BAD TOKEN" :
+    "OFFLINE";
 
   const title =
     s === "ok" ? "Connected" :
@@ -121,8 +121,6 @@ async function refreshActiveTabInfo() {
   state.activeTab = tab;
   state.activeUrl = tab && tab.url ? tab.url : null;
   state.routeKey = state.activeUrl ? routeKeyFromUrl(state.activeUrl) : null;
-  const short = state.activeUrl ? shortUrl(state.activeUrl) : "—";
-  setText("activeRouteDisplay", `URL: ${short}`);
 }
 
 function elementSummary(sel) {

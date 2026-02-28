@@ -70,6 +70,12 @@ button, input, textarea, select {
   gap: 12px;
 }
 
+.header-left {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .header-sub {
   font-size: 12px;
   color: var(--muted);
@@ -95,8 +101,8 @@ button, input, textarea, select {
 .hdr-btn {
   width: 34px;
   height: 30px;
-  border: 1px solid var(--rule);
-  background: var(--panel);
+  border: 0;
+  background: transparent;
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -104,6 +110,10 @@ button, input, textarea, select {
 }
 .hdr-btn:hover { background: var(--text); color: var(--bg); }
 .hdr-btn:active { transform: translateY(1px); }
+
+.hdr-switch {
+  margin-left: 2px;
+}
 
 .main {
   flex: 1;

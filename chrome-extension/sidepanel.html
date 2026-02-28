@@ -9,26 +9,20 @@
   <body class="app">
     <header class="header">
       <div class="header-left">
-        <div class="header-sub" id="activeRouteDisplay">URL: —</div>
+        <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">OFFLINE</span>
       </div>
       <div class="header-right">
-        <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">[OFFLINE]</span>
         <button id="refreshTab" class="hdr-btn" title="Refresh" type="button" aria-label="Refresh">↻</button>
         <button id="openSettings" class="hdr-btn" title="Settings" type="button" aria-label="Settings">⋯</button>
+        <label class="switch hdr-switch" aria-label="Annotate mode">
+          <input type="checkbox" id="annotateToggle" />
+          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+        </label>
       </div>
     </header>
 
     <main class="main">
-      <section class="section">
-        <div class="annotate-row">
-          <div class="annotate-title">Annotate mode</div>
-          <label class="switch" aria-label="Annotate mode">
-            <input type="checkbox" id="annotateToggle" />
-            <span class="track" aria-hidden="true"><span class="thumb"></span></span>
-          </label>
-        </div>
-        <div class="inline-error" id="annotateError" hidden></div>
-      </section>
+      <div class="inline-error" id="annotateError" hidden></div>
 
       <section class="section">
         <div class="section-head">
@@ -198,7 +192,7 @@
 
     <footer class="footer">
       <button id="send" class="send-btn" type="button">
-        <span class="send-text">SEND ANNOTATION</span>
+        <span class="send-text">SAVE ANNOTATION</span>
         <span class="send-arrow" aria-hidden="true">→</span>
       </button>
     </footer>
