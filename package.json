@@ -6,6 +6,8 @@
   "scripts": {
     "pack:agent-annotations": "cd packages/agent-annotations && pnpm pack",
     "pack:receiver": "cd packages/agent-annotations-receiver && pnpm pack",
-    "package:extension": "python scripts/package-extension-zip.py"
+    "package:extension": "python scripts/package-extension-zip.py",
+    "test:extension": "node --test tests/extension/*.test.mjs",
+    "test:extension:browser": "node tests/browser/extension-journey.mjs"
   }
 }

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Agent Annotations</title>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="#111111"/>
+  <path
+    d="M42 30H28V44M86 30H100V44M28 84V98H42M100 84V98H86"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="8"
+    stroke-linecap="square"
+    stroke-linejoin="miter"
+  />
+  <path d="M43 46H85V76H65L49 90V76H43Z" fill="#6ea8ff"/>
+  <circle cx="55" cy="61" r="4" fill="#111111"/>
+  <circle cx="67" cy="61" r="4" fill="#111111"/>
+  <circle cx="79" cy="61" r="4" fill="#111111"/>
+</svg>

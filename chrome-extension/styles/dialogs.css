@@ -1,0 +1,189 @@
+.dialog {
+  border: 1px solid var(--rule);
+  padding: 0;
+  inline-size: min(35rem, 92vw);
+  max-block-size: calc(100dvh - 2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 25%);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border-block-end: 1px solid var(--rule);
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dialog-body {
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.875rem;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(5rem, 6.875rem) minmax(0, 1fr);
+  gap: 0.625rem;
+  align-items: start;
+}
+
+.k {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+.v {
+  overflow-wrap: anywhere;
+}
+
+.dialog-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.dialog-section-title,
+.field-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dialog-section-title {
+  letter-spacing: 0.12em;
+}
+
+.field-label {
+  letter-spacing: 0.08em;
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.field-input {
+  inline-size: 100%;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 0.625rem;
+}
+
+.field-input:user-invalid {
+  border-color: var(--err);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.check input {
+  accent-color: var(--text);
+}
+
+.dialog-actions,
+.action-row {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 0.625rem 0.75rem;
+  cursor: pointer;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.is-busy {
+  cursor: progress;
+}
+
+.btn.is-error {
+  color: var(--err);
+  border-color: var(--err);
+}
+
+.btn.is-ok {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.grow {
+  flex: 1;
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.dialog-asset {
+  inline-size: min(53.75rem, 96vw);
+}
+
+.dialog-asset-body {
+  overflow: auto;
+}
+
+.asset-img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  object-fit: initial;
+  object-position: 50% 50%;
+  border: 1px solid var(--rule);
+  background: transparent;
+}
+
+@media (max-width: 24rem) {
+  .kv {
+    grid-template-columns: 1fr;
+  }
+}

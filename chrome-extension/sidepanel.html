@@ -1,12 +1,16 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Agent Annotations</title>
-    <link rel="stylesheet" href="sidepanel.css" />
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/controls.css">
+    <link rel="stylesheet" href="styles/content.css">
+    <link rel="stylesheet" href="styles/dialogs.css">
   </head>
   <body class="app">
+    <h1 class="sr-only">Agent Annotations</h1>
     <header class="header">
       <div class="header-left">
         <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">OFFLINE</span>
@@ -15,18 +19,19 @@
         <button id="refreshTab" class="hdr-btn" title="Refresh" type="button" aria-label="Refresh">↻</button>
         <button id="openSettings" class="hdr-btn" title="Settings" type="button" aria-label="Settings">⋯</button>
         <label class="switch hdr-switch" aria-label="Annotate mode">
-          <input type="checkbox" id="annotateToggle" />
+          <input type="checkbox" id="annotateToggle">
           <span class="track" aria-hidden="true"><span class="thumb"></span></span>
         </label>
       </div>
     </header>
 
     <main class="main">
-      <div class="inline-error" id="annotateError" hidden></div>
+      <div class="inline-error" id="annotateError" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+      <div class="sr-only" id="actionStatus" role="status" aria-live="polite" aria-atomic="true"></div>
 
       <section class="section">
         <div class="section-head">
-          <div class="section-title">Capture</div>
+          <h2 class="section-title">Capture</h2>
         </div>
         <div class="action-grid">
           <button id="attachScreenshot" class="action-btn" type="button">
@@ -58,7 +63,7 @@
 
       <section class="section">
         <div class="section-head">
-          <div class="section-title">Selected Element</div>
+          <h2 class="section-title">Selected Element</h2>
           <div class="section-actions">
             <button id="clearSelected" class="text-btn" type="button" title="Clear selected element" aria-label="Clear selected element" hidden>X</button>
           </div>
@@ -68,52 +73,49 @@
 
       <section class="section" id="attachmentsSection" hidden>
         <div class="section-head">
-          <div class="section-title">Attachments</div>
+          <h2 class="section-title">Attachments</h2>
         </div>
         <div id="attachments" class="attachments"></div>
       </section>
 
       <section class="section">
         <div class="section-head">
-          <div class="section-title">Comment</div>
+          <h2 class="section-title"><label for="comment">Comment</label></h2>
         </div>
-        <textarea id="comment" class="comment" rows="3" placeholder="Type annotation here... (Tip: paste an image to attach it)"></textarea>
+        <textarea id="comment" name="comment" class="comment" rows="3" placeholder="Type annotation here…" aria-describedby="commentHint"></textarea>
+        <div id="commentHint" class="help">Paste an image to attach it.</div>
       </section>
 
-      <section class="section">
-        <div class="section-head">
-          <div class="section-title">Annotation type</div>
-        </div>
-        <div class="sev-group" role="radiogroup" aria-label="Annotation type">
-          <button class="sev-btn sev-bug" type="button" data-sev="bug">
+      <fieldset class="section choice-fieldset">
+        <legend class="section-title">Annotation type</legend>
+        <div class="sev-group">
+          <label class="sev-btn sev-bug" data-sev="bug">
+            <input class="sr-only" type="radio" name="severityChoice" value="bug">
             <span>BUG</span>
-          </button>
-          <button class="sev-btn sev-feature" type="button" data-sev="feature">
+          </label>
+          <label class="sev-btn sev-feature" data-sev="feature">
+            <input class="sr-only" type="radio" name="severityChoice" value="feature">
             <span>NEW FEATURE</span>
-          </button>
-          <button class="sev-btn sev-info" type="button" data-sev="info">
+          </label>
+          <label class="sev-btn sev-info" data-sev="info">
+            <input class="sr-only" type="radio" name="severityChoice" value="info" checked>
             <span>REQUEST</span>
-          </button>
+          </label>
         </div>
-        <select id="severity" class="sr-only" aria-label="Annotation type (hidden)">
-          <option value="info">info</option>
-          <option value="feature">feature</option>
-          <option value="bug">bug</option>
-        </select>
-      </section>
+      </fieldset>
 
       <section class="section">
         <div class="section-head">
-          <div class="section-title">Unresolved</div>
+          <h2 class="section-title">Unresolved</h2>
           <button id="refreshList" class="text-btn" type="button">REFRESH</button>
         </div>
-        <div id="list" class="list"></div>
+        <div id="list" class="list" aria-live="polite"></div>
       </section>
 
-      <dialog id="detailDialog" class="dialog">
+      <dialog id="detailDialog" class="dialog" aria-labelledby="detailDialogTitle">
         <div class="dialog-header">
-          <div class="dialog-title">Annotation</div>
-          <button id="closeDetail" class="icon-btn ghost" title="Close" type="button">✕</button>
+          <h2 class="dialog-title" id="detailDialogTitle">Annotation</h2>
+          <button id="closeDetail" class="icon-btn ghost" type="button" aria-label="Close annotation details">✕</button>
         </div>
         <div class="dialog-body">
           <div class="kv">
@@ -136,55 +138,55 @@
             <button id="copyPrompt" class="btn btn-ghost grow" type="button">Copy as prompt</button>
             <button id="markResolved" class="btn btn-primary grow" type="button">Resolve</button>
           </div>
-          <div class="muted tiny" id="detailHint"></div>
+          <div class="muted tiny" id="detailHint" role="status" aria-live="polite" aria-atomic="true"></div>
         </div>
       </dialog>
 
-      <dialog id="assetDialog" class="dialog dialog-asset">
+      <dialog id="assetDialog" class="dialog dialog-asset" aria-labelledby="assetTitle">
         <div class="dialog-header">
-          <div class="dialog-title mono" id="assetTitle">Attachment</div>
-          <button id="closeAsset" class="icon-btn ghost" title="Close" type="button">✕</button>
+          <h2 class="dialog-title mono" id="assetTitle">Attachment</h2>
+          <button id="closeAsset" class="icon-btn ghost" type="button" aria-label="Close attachment preview">✕</button>
         </div>
         <div class="dialog-body dialog-asset-body">
           <div class="muted tiny" id="assetMeta">—</div>
-          <img id="assetImg" class="asset-img" alt="" />
+          <img id="assetImg" class="asset-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="">
         </div>
       </dialog>
 
-      <dialog id="settingsDialog" class="dialog">
+      <dialog id="settingsDialog" class="dialog" aria-labelledby="settingsDialogTitle">
         <div class="dialog-header">
-          <div class="dialog-title">Settings</div>
-          <button id="closeSettings" class="icon-btn ghost" title="Close" type="button">✕</button>
+          <h2 class="dialog-title" id="settingsDialogTitle">Settings</h2>
+          <button id="closeSettings" class="icon-btn ghost" type="button" aria-label="Close settings">✕</button>
         </div>
         <div class="dialog-body">
           <div class="dialog-section">
-            <div class="dialog-section-title">Receiver</div>
-            <label class="field">
-              <span class="field-label">Server URL</span>
-              <input id="serverUrl" class="field-input" placeholder="http://localhost:8787" />
-            </label>
+            <h3 class="dialog-section-title">Receiver</h3>
+            <div class="field">
+              <label class="field-label" for="serverUrl">Server URL</label>
+              <input id="serverUrl" name="serverUrl" class="field-input" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:8787">
+            </div>
             <div class="muted tiny">Current: <span class="mono" id="serverUrlDisplay">—</span></div>
           </div>
 
           <div class="dialog-section">
-            <div class="dialog-section-title">Auth</div>
-            <label class="field">
-              <span class="field-label">Token</span>
-              <input id="token" class="field-input mono" type="password" placeholder="Token" />
-            </label>
+            <h3 class="dialog-section-title">Auth</h3>
+            <div class="field">
+              <label class="field-label" for="token">Token</label>
+              <input id="token" name="token" class="field-input mono" type="password" autocomplete="new-password" spellcheck="false" placeholder="Token">
+            </div>
             <label class="check">
-              <input id="showToken" type="checkbox" />
+              <input id="showToken" name="showToken" type="checkbox">
               <span>Show token</span>
             </label>
           </div>
 
           <div class="dialog-section">
-            <div class="dialog-section-title">Diagnostics</div>
+            <h3 class="dialog-section-title">Diagnostics</h3>
             <div class="dialog-actions">
               <button id="saveSettings" class="btn" type="button">Save</button>
               <button id="testConn" class="btn" type="button">Test connection</button>
             </div>
-            <div class="muted tiny" id="settingsHint"></div>
+            <div class="muted tiny" id="settingsHint" role="status" aria-live="polite" aria-atomic="true"></div>
           </div>
         </div>
       </dialog>
@@ -197,6 +199,6 @@
       </button>
     </footer>
 
-    <script src="sidepanel.js"></script>
+    <script type="module" src="sidepanel/main.js"></script>
   </body>
 </html>
