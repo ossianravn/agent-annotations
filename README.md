@@ -4,7 +4,7 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 
 ## How it works (visual)
 
-1) Annotate an element in the extension and click **Send Report**:
+1) Annotate an element in the extension and click **Save Annotation**:
 
 <img src="docs/images/example-usage-1.png" width="900" alt="Agent Annotations: creating an annotation in the extension" />
 
@@ -40,6 +40,11 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
    ```
 2. Open the extension (it should already have your token; if not, use `.agent-annotations/token.txt`)
 3. In your agent, invoke: `check-agent-annotations`
+
+Saved unresolved annotations remain available in the side panel. Open one to
+edit its comment, copy it as a prompt, preview image attachments, or resolve it.
+Image attachments appear as square thumbnails; selecting one opens the full
+image with its stored path below it.
 
 What `setup` does:
 - Installs the skill/instructions into the repo (so your agent will read `.agent-annotations/`)

@@ -233,6 +233,52 @@ builds the extension assets and publishes both npm packages from that tag.
   extension, temporary page, and real receiver. It verifies keyboard selection,
   capture and crop, cold restart recovery, save, list, detail, and resolve.
 - **2026-07-21:** Prepared the complete remediation as release `v0.4.0`.
+- **2026-07-28:** Made unresolved annotation comments editable and replaced
+  saved attachment paths with authenticated square image thumbnails. Saved
+  previews reuse the native image dialog, preserve the source aspect ratio,
+  and show the stored path below the image.
+- **2026-07-29:** Hardened saved-comment concurrency and receiver attachment
+  compatibility after review. Slow save responses cannot overwrite newer
+  editor text, save failures remain in the modal live region, raw
+  `dataBase64` uploads remain supported, and multi-attachment resolution
+  preflights and rolls back file moves.
+
+### Saved annotation interface follow-up
+
+- The detail dialog owns comment editing, dirty-state feedback, discard
+  confirmation, and save-before-resolve behavior. Copy-as-prompt uses the
+  currently visible comment, including unsaved edits.
+- While a comment save is pending, close and resolve are disabled. The editor
+  remains usable; a response only updates it when the annotation session and
+  submitted editor value still match. Newer text stays dirty and available for
+  the next save.
+- Comment-save failures are shown persistently in the dialog's polite live
+  region instead of relying on page-level feedback outside the active modal.
+- The receiver owns persistence and asset access through authenticated
+  `PATCH /annotations/:id` and
+  `GET /annotations/:id/attachments/:index` endpoints.
+- Attachment reads are limited to managed open/resolved asset directories.
+  Responses are non-cacheable and include `X-Content-Type-Options: nosniff`.
+- Thumbnail object URLs are revoked when saved detail content is replaced or
+  closed. Images use native buttons and the preview uses a named `<dialog>`,
+  `<figure>`, and `<figcaption>`.
+- The standalone receiver and both scaffolded receiver copies are kept byte
+  identical by an integration test, including the focused attachment-storage
+  module.
+
+Follow-up validation on 2026-07-29:
+
+- `pnpm test:extension`: 9 tests passed.
+- `pnpm test:receiver`: 2 integration tests passed, covering authenticated
+  edits and reads, raw `dataBase64`, managed-path enforcement, failed resolve
+  preflight, and runtime-copy parity.
+- `pnpm test:extension:browser`: passed in Chrome 146, including saved comment
+  persistence, square thumbnails, hidden raw paths, full-aspect preview, path
+  caption, stale-response protection, modal-local errors, and
+  resolve-after-edit.
+- JavaScript syntax, `html-validate`, and CSS Tree validation passed.
+- The extension ZIP passed archive and checksum validation with all 31 runtime
+  files. Dry runs for both npm packages included the updated receiver copies.
 
 ## Final validation
 

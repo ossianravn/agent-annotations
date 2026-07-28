@@ -69,20 +69,27 @@ function removeAttachment(id) {
 }
 
 export function openAssetPreview(attachment) {
-  if (!attachment?.dataUrl) return;
+  const source = attachment?.dataUrl || attachment?.previewUrl;
+  if (!source) return;
   state.previewAttachment = attachment;
   $("assetTitle").textContent = attachment.name || "Attachment";
   const size = formatBytes(estimateBytesFromDataUrl(attachment.dataUrl));
-  $("assetMeta").textContent = [attachment.mime || "attachment", size].filter(Boolean).join(" • ");
-  $("assetImg").src = attachment.dataUrl;
+  $("assetMeta").textContent = attachment.path || [attachment.mime || "attachment", size].filter(Boolean).join(" • ");
+  $("assetImg").src = source;
   $("assetImg").alt = attachment.name || "Attachment preview";
   $("assetDialog").showModal();
 }
 
-export function closeAssetPreview() {
+export function resetAssetPreview() {
   state.previewAttachment = null;
   $("assetImg").src = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+  $("assetImg").alt = "";
+  $("assetMeta").textContent = "—";
+}
+
+export function closeAssetPreview() {
   if ($("assetDialog").open) $("assetDialog").close();
+  else resetAssetPreview();
 }
 
 export function renderAttachments() {

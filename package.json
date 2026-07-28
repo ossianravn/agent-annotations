@@ -8,6 +8,7 @@
     "pack:receiver": "cd packages/agent-annotations-receiver && pnpm pack",
     "package:extension": "python scripts/package-extension-zip.py",
     "test:extension": "node --test tests/extension/*.test.mjs",
-    "test:extension:browser": "node tests/browser/extension-journey.mjs"
+    "test:extension:browser": "node tests/browser/extension-journey.mjs",
+    "test:receiver": "node --test tests/receiver/*.test.mjs"
   }
 }

@@ -3,13 +3,19 @@ import {
   captureScreenshot,
   clearAttachments,
   closeAssetPreview,
-  cropElementFromScreenshot
+  cropElementFromScreenshot,
+  resetAssetPreview
 } from "./attachments.js";
 import {
   closeDetail,
   copySelectedAnnotation,
+  detailCommentIsDirty,
+  detailSaveIsPending,
   refreshList,
-  resolveSelectedAnnotation
+  resetDetail,
+  resolveSelectedAnnotation,
+  saveSelectedAnnotationComment,
+  syncDetailCommentState
 } from "./annotations.js";
 import {
   clearSelectedElement,
@@ -167,8 +173,23 @@ async function sendAnnotation() {
 function bindDialogs() {
   $("closeDetail").addEventListener("click", closeDetail);
   bindBackdropClose($("detailDialog"), closeDetail);
+  $("detailDialog").addEventListener("cancel", (event) => {
+    if (!detailCommentIsDirty() && !detailSaveIsPending()) return;
+    event.preventDefault();
+    closeDetail();
+  });
+  $("detailDialog").addEventListener("close", resetDetail);
+  $("detailComment").addEventListener("input", syncDetailCommentState);
+  $("saveDetail").addEventListener("click", async () => {
+    try {
+      await saveSelectedAnnotationComment();
+    } catch (error) {
+      announceAction(error?.message || error);
+    }
+  });
   $("closeAsset").addEventListener("click", closeAssetPreview);
   bindBackdropClose($("assetDialog"), closeAssetPreview);
+  $("assetDialog").addEventListener("close", resetAssetPreview);
   $("copyPrompt").addEventListener("click", copySelectedAnnotation);
   $("markResolved").addEventListener("click", resolveSelectedAnnotation);
 }

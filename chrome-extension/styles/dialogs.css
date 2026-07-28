@@ -55,6 +55,60 @@
   overflow-wrap: anywhere;
 }
 
+.detail-comment {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 7.5rem;
+  resize: vertical;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--text);
+  padding: 0.625rem;
+  line-height: 1.45;
+}
+
+.detail-attachments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 4.5rem);
+  gap: 0.5rem;
+  min-block-size: 1.25rem;
+}
+
+.detail-attachment {
+  box-sizing: border-box;
+  inline-size: 4.5rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.6875rem;
+  font-weight: 900;
+}
+
+button.detail-attachment {
+  padding: 0;
+  cursor: zoom-in;
+}
+
+button.detail-attachment:hover {
+  border-color: var(--text);
+}
+
+.detail-attachment img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.detail-attachment.is-unavailable {
+  color: var(--err);
+  border-color: var(--err);
+}
+
 .dialog-section {
   display: grid;
   gap: 0.5rem;
@@ -172,6 +226,12 @@
   overflow: auto;
 }
 
+.asset-figure {
+  margin: 0;
+  display: grid;
+  gap: 0.625rem;
+}
+
 .asset-img {
   display: block;
   inline-size: 100%;
@@ -180,6 +240,10 @@
   object-position: 50% 50%;
   border: 1px solid var(--rule);
   background: transparent;
+}
+
+.asset-caption {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 24rem) {

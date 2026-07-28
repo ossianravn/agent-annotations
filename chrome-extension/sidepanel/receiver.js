@@ -161,6 +161,39 @@ export async function getAnnotationsForRoute() {
   return data.annotations;
 }
 
+export async function updateAnnotationComment(annotation, comment) {
+  if (!annotation?.id) throw new Error("Annotation ID is missing.");
+  const response = await fetchWithTimeout(
+    `${state.settings.serverUrl}/annotations/${encodeURIComponent(annotation.id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Annotation-Token": state.settings.token
+      },
+      body: JSON.stringify({ comment })
+    }
+  );
+  const data = await responseJson(response);
+  if (!response.ok || !data.ok || !data.annotation) {
+    throw new Error(data.error || `Receiver error (${response.status}).`);
+  }
+  return data.annotation;
+}
+
+export async function fetchAnnotationAttachment(annotation, index) {
+  if (!annotation?.id) throw new Error("Annotation ID is missing.");
+  const response = await fetchWithTimeout(
+    `${state.settings.serverUrl}/annotations/${encodeURIComponent(annotation.id)}/attachments/${index}`,
+    { headers: { "X-Annotation-Token": state.settings.token } }
+  );
+  if (!response.ok) {
+    const data = await responseJson(response);
+    throw new Error(data.error || `Receiver error (${response.status}).`);
+  }
+  return response.blob();
+}
+
 export async function markResolved(annotation) {
   if (!annotation?.id) throw new Error("Annotation ID is missing.");
   const response = await fetchWithTimeout(

@@ -127,14 +127,15 @@
             <div class="v mono" id="detailLocator">—</div>
           </div>
           <div class="kv">
-            <div class="k">Comment</div>
-            <div class="v" id="detailComment">—</div>
+            <label class="k" for="detailComment">Comment</label>
+            <textarea class="detail-comment" id="detailComment" name="detailComment" rows="6" required aria-describedby="detailHint"></textarea>
           </div>
           <div class="kv">
             <div class="k">Attachments</div>
-            <div class="v mono" id="detailAttachments">—</div>
+            <div class="detail-attachments" id="detailAttachments"></div>
           </div>
           <div class="action-row">
+            <button id="saveDetail" class="btn grow" type="button" disabled>Save changes</button>
             <button id="copyPrompt" class="btn btn-ghost grow" type="button">Copy as prompt</button>
             <button id="markResolved" class="btn btn-primary grow" type="button">Resolve</button>
           </div>
@@ -148,8 +149,10 @@
           <button id="closeAsset" class="icon-btn ghost" type="button" aria-label="Close attachment preview">✕</button>
         </div>
         <div class="dialog-body dialog-asset-body">
-          <div class="muted tiny" id="assetMeta">—</div>
-          <img id="assetImg" class="asset-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="">
+          <figure class="asset-figure">
+            <img id="assetImg" class="asset-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="">
+            <figcaption class="muted tiny asset-caption" id="assetMeta">—</figcaption>
+          </figure>
         </div>
       </dialog>
 

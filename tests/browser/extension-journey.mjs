@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import http from "node:http";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { ChromePipe } from "./chrome_pipe.mjs";
+import {
+  click,
+  evaluate,
+  findChromePath,
+  freePort,
+  stopProcess,
+  waitFor,
+  waitForEvaluation
+} from "./journey_support.mjs";
+import { FINAL_SAVED_COMMENT, verifySavedAnnotationDetail } from "./saved_annotation_journey.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const extensionPath = path.join(root, "chrome-extension");
@@ -16,81 +25,7 @@ const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-br
 const profilePath = path.join(temporaryRoot, "chrome-profile");
 const receiverRepo = path.join(temporaryRoot, "receiver-repo");
 
-async function findChromePath() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  const browserRoot = path.join(os.homedir(), ".agent-browser/browsers");
-  try {
-    const versions = (await readdir(browserRoot))
-      .filter((name) => name.startsWith("chrome-"))
-      .sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
-    if (versions[0]) return path.join(browserRoot, versions[0], "chrome");
-  } catch {
-    // Fall through to the system Chrome path.
-  }
-  return "/usr/bin/google-chrome";
-}
-
 const chromePath = await findChromePath();
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.on("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
-
-async function waitFor(check, description, timeoutMs = 10000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(`Timed out waiting for ${description}.`);
-}
-
-async function evaluate(chrome, sessionId, expression) {
-  const response = await chrome.command("Runtime.evaluate", {
-    expression,
-    awaitPromise: true,
-    returnByValue: true
-  }, sessionId);
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text);
-  }
-  return response.result?.value;
-}
-
-async function click(chrome, sessionId, selector) {
-  const response = await chrome.command("Runtime.evaluate", {
-    expression: `(() => {
-    const element = document.querySelector(${JSON.stringify(selector)});
-    if (!element) throw new Error("Missing click target: ${selector}");
-    element.click();
-  })()`,
-    userGesture: true,
-    awaitPromise: true
-  }, sessionId);
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text);
-  }
-}
-
-async function waitForEvaluation(chrome, sessionId, expression, description) {
-  await waitFor(() => evaluate(chrome, sessionId, expression), description);
-}
-
-async function stopProcess(process) {
-  if (!process || process.exitCode != null) return;
-  process.kill("SIGTERM");
-  await new Promise((resolve) => {
-    process.once("exit", resolve);
-    setTimeout(resolve, 1000);
-  });
-}
 
 await access(chromePath);
 const [receiverPort, fixturePort] = await Promise.all([freePort(), freePort()]);
@@ -204,7 +139,7 @@ try {
     comment.value = 'Browser journey annotation';
     comment.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
-  await click(chrome, panelSession, "input[value='bug']");
+  await click(chrome, panelSession, "label[data-sev='bug']");
   await evaluate(chrome, panelSession, "import(chrome.runtime.getURL('sidepanel/drafts.js')).then((module) => module.flushDraft())");
 
   const workerTarget = (await chrome.targets()).find((target) => target.type === "service_worker" && target.url.includes(extensionId));
@@ -245,12 +180,11 @@ try {
   await click(chrome, panelSession, "#send");
   await waitForEvaluation(chrome, panelSession, "document.querySelector('#actionStatus').textContent === 'Annotation saved.'", "annotation save");
   await waitForEvaluation(chrome, panelSession, "Boolean(document.querySelector('.item'))", "annotation list item");
-  await click(chrome, panelSession, ".item");
-  await click(chrome, panelSession, "#markResolved");
-  await waitForEvaluation(chrome, panelSession, "document.querySelector('#list').textContent.includes('No unresolved')", "annotation resolve");
+  await verifySavedAnnotationDetail(chrome, panelSession);
 
   const resolved = await readFile(path.join(receiverRepo, ".agent-annotations/inbox-resolved.jsonl"), "utf8");
-  assert.match(resolved, /Browser journey annotation/);
+  assert.match(resolved, new RegExp(FINAL_SAVED_COMMENT));
+  assert.doesNotMatch(resolved, /"comment":"Browser journey annotation"/);
   assert.match(resolved, /"severity":"bug"/);
   assert.match(resolved, /"attachments":\[/);
 

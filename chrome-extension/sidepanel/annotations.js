@@ -1,6 +1,11 @@
 import { $, normalizedSeverity, state } from "./shared.js";
 import { setListMessage } from "./feedback.js";
-import { getAnnotationsForRoute, markResolved } from "./receiver.js";
+import { closeAssetPreview } from "./attachments.js";
+import { clearSavedAttachmentPreviews, renderSavedAttachments } from "./saved_attachments.js";
+import { getAnnotationsForRoute, markResolved, updateAnnotationComment } from "./receiver.js";
+
+let detailSessionId = 0;
+let activeCommentSave = null;
 
 function severityLabel(value) {
   if (value === "bug") return "BUG";
@@ -68,29 +73,115 @@ export async function refreshList() {
 }
 
 export function openDetail(annotation) {
+  detailSessionId += 1;
+  closeAssetPreview();
+  clearSavedAttachmentPreviews();
   state.selectedAnnotation = annotation;
   $("detailId").textContent = annotation.id || "—";
   const primary = annotation.element?.primary;
   $("detailLocator").textContent = primary ? `${primary.type}:${primary.value || ""}` : "—";
-  $("detailComment").textContent = annotation.comment || "—";
-  const attachments = $("detailAttachments");
-  attachments.replaceChildren();
-  if (annotation.attachments?.length) {
-    for (const attachment of annotation.attachments) {
-      const line = document.createElement("div");
-      line.textContent = `${attachment.kind || "asset"}: ${attachment.path || ""}`;
-      attachments.appendChild(line);
-    }
-  } else {
-    attachments.textContent = "—";
-  }
+  $("detailComment").value = annotation.comment || "";
   $("detailHint").textContent = "";
+  syncDetailControls();
   if (!$("detailDialog").open) $("detailDialog").showModal();
+  renderSavedAttachments(annotation).catch((error) => {
+    console.error("Could not render saved attachments:", error);
+    $("detailHint").textContent = "Attachments could not be loaded.";
+  });
 }
 
 export function closeDetail() {
-  state.selectedAnnotation = null;
+  if (detailSaveIsPending()) {
+    $("detailHint").textContent = "Wait for the current changes to finish saving.";
+    return;
+  }
+  if (detailCommentIsDirty() && !confirm("Discard unsaved comment changes?")) return;
   if ($("detailDialog").open) $("detailDialog").close();
+}
+
+export function resetDetail() {
+  detailSessionId += 1;
+  closeAssetPreview();
+  clearSavedAttachmentPreviews();
+  state.selectedAnnotation = null;
+}
+
+export function detailCommentIsDirty() {
+  if (!state.selectedAnnotation) return false;
+  return $("detailComment").value !== (state.selectedAnnotation.comment || "");
+}
+
+export function detailSaveIsPending() {
+  return Boolean(
+    activeCommentSave &&
+    activeCommentSave.sessionId === detailSessionId &&
+    activeCommentSave.annotationId === state.selectedAnnotation?.id
+  );
+}
+
+function syncDetailControls() {
+  const pending = detailSaveIsPending();
+  const comment = $("detailComment").value.trim();
+  $("saveDetail").disabled = pending || !detailCommentIsDirty() || !comment;
+  $("closeDetail").disabled = pending;
+  $("markResolved").disabled = pending;
+}
+
+export function syncDetailCommentState() {
+  const comment = $("detailComment").value.trim();
+  const dirty = detailCommentIsDirty();
+  syncDetailControls();
+  if (dirty) $("detailHint").textContent = comment ? "Unsaved changes." : "Comment cannot be empty.";
+  else if (["Unsaved changes.", "Comment cannot be empty."].includes($("detailHint").textContent)) {
+    $("detailHint").textContent = "";
+  }
+}
+
+export async function saveSelectedAnnotationComment() {
+  const selected = state.selectedAnnotation;
+  if (!selected) return null;
+  if (detailSaveIsPending()) return activeCommentSave.promise;
+  const editorValue = $("detailComment").value;
+  const comment = editorValue.trim();
+  if (!comment) throw new Error("Comment cannot be empty.");
+  if (!detailCommentIsDirty()) return selected;
+
+  const request = {
+    annotationId: selected.id,
+    editorValue,
+    sessionId: detailSessionId,
+    promise: null
+  };
+  request.promise = updateAnnotationComment(selected, comment);
+  activeCommentSave = request;
+  syncDetailControls();
+  $("detailHint").textContent = "Saving changes…";
+
+  try {
+    const updated = await request.promise;
+    state.openAnnotations = state.openAnnotations.map((annotation) => (
+      annotation.id === updated.id ? updated : annotation
+    ));
+    renderList();
+    const isCurrent = request.sessionId === detailSessionId && state.selectedAnnotation?.id === updated.id;
+    if (!isCurrent) return updated;
+
+    state.selectedAnnotation = updated;
+    if ($("detailComment").value === request.editorValue) {
+      $("detailComment").value = updated.comment;
+      $("detailHint").textContent = "Comment saved.";
+    } else {
+      syncDetailCommentState();
+    }
+    return updated;
+  } catch (error) {
+    const isCurrent = request.sessionId === detailSessionId && state.selectedAnnotation?.id === request.annotationId;
+    if (isCurrent) $("detailHint").textContent = `Could not save changes: ${error?.message || error}`;
+    throw error;
+  } finally {
+    if (activeCommentSave === request) activeCommentSave = null;
+    if (request.sessionId === detailSessionId) syncDetailControls();
+  }
 }
 
 function annotationPrompt(annotation) {
@@ -115,7 +206,10 @@ function annotationPrompt(annotation) {
 export async function copySelectedAnnotation() {
   if (!state.selectedAnnotation) return;
   try {
-    await navigator.clipboard.writeText(annotationPrompt(state.selectedAnnotation));
+    await navigator.clipboard.writeText(annotationPrompt({
+      ...state.selectedAnnotation,
+      comment: $("detailComment").value.trim()
+    }));
     $("detailHint").textContent = "Copied to clipboard.";
   } catch (error) {
     $("detailHint").textContent = `Could not copy: ${error?.message || error}`;
@@ -126,6 +220,7 @@ export async function resolveSelectedAnnotation() {
   if (!state.selectedAnnotation) return;
   $("detailHint").textContent = "Resolving…";
   try {
+    if (detailCommentIsDirty()) await saveSelectedAnnotationComment();
     await markResolved(state.selectedAnnotation);
     await refreshList();
     closeDetail();
