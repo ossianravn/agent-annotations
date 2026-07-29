@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Agent Annotations",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "minimum_chrome_version": "116",
   "description": "A right-side panel for DOM-based UI annotations and an agent-friendly inbox.",
   "permissions": [
