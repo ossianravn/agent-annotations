@@ -12,13 +12,13 @@ function safeName(value) {
 }
 
 function extensionForMime(mime) {
-  return { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" }[mime] || ".bin";
+  return { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif" }[mime] || ".bin";
 }
 
 function assetName(rawName, mime, fallback) {
   const desiredExtension = extensionForMime(mime);
-  const deduplicated = safeName(rawName || fallback).replace(/\.(png|jpe?g|webp|bin)(\.\1)+$/i, ".$1");
-  if (/\.(png|jpe?g|webp|bin)$/i.test(deduplicated)) return deduplicated;
+  const deduplicated = safeName(rawName || fallback).replace(/\.(png|jpe?g|webp|gif|bin)(\.\1)+$/i, ".$1");
+  if (/\.(png|jpe?g|webp|gif|bin)$/i.test(deduplicated)) return deduplicated;
   return `${deduplicated}${desiredExtension}`;
 }
 
@@ -35,8 +35,9 @@ function uploadPayload(asset, index) {
 }
 
 function createAssetStore(repoRoot, assetDirs) {
+  // Stored paths use "/" so an inbox written on one OS resolves on another.
   function managedPath(relativePath) {
-    const absolutePath = path.resolve(repoRoot, relativePath || "");
+    const absolutePath = path.resolve(repoRoot, String(relativePath || "").replace(/\\/g, "/"));
     const allowed = Object.values(assetDirs).some((root) => (
       absolutePath.startsWith(`${path.resolve(root)}${path.sep}`)
     ));
@@ -50,7 +51,7 @@ function createAssetStore(repoRoot, assetDirs) {
       const payload = uploadPayload(asset, index);
       if (!payload) continue;
       const name = assetName(asset?.name, payload.mime, `asset_${index}`);
-      const relativePath = path.join(".agent-annotations", "assets", "open", `${id}_${index}_${name}`);
+      const relativePath = path.posix.join(".agent-annotations", "assets", "open", `${id}_${index}_${name}`);
       fs.writeFileSync(path.join(repoRoot, relativePath), Buffer.from(payload.base64, "base64"));
       attachments.push({ kind: "asset", mime: payload.mime, path: relativePath });
     }
@@ -61,7 +62,7 @@ function createAssetStore(repoRoot, assetDirs) {
     if (!attachment?.path) throw requestError(404, "Attachment not found.");
     const absolutePath = managedPath(attachment.path);
     if (!fs.existsSync(absolutePath)) throw requestError(404, "Attachment file not found.");
-    return { ...attachment, absolutePath, name: path.basename(attachment.path) };
+    return { ...attachment, absolutePath, name: path.basename(absolutePath) };
   }
 
   function resolveAttachments(attachments) {
@@ -69,7 +70,7 @@ function createAssetStore(repoRoot, assetDirs) {
       if (!attachment?.path) return { attachment };
       const source = managedPath(attachment.path);
       if (!fs.existsSync(source)) throw new Error(`Attachment file is missing: ${attachment.path}`);
-      const relativePath = path.join(".agent-annotations", "assets", "resolved", path.basename(attachment.path));
+      const relativePath = path.posix.join(".agent-annotations", "assets", "resolved", path.basename(source));
       const destination = managedPath(relativePath);
       if (fs.existsSync(destination)) throw new Error(`Resolved attachment already exists: ${relativePath}`);
       return { attachment, source, destination, relativePath };

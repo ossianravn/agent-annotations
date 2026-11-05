@@ -273,11 +273,33 @@ function renderCopilotSnippet() {
   - \`.agent-annotations/inbox.jsonl\` (open items)
   - \`.agent-annotations/inbox-resolved.jsonl\` (archive, if present)
 - Use annotation data to decide *what to change* and *where*.
-- After you implement a fix, mark related annotations as \`resolved\` (append a resolved event to \`inbox-resolved.jsonl\` or follow the repo’s process).
+- After you implement a fix, mark related annotations as \`resolved\`: POST \`{"status":"resolved"}\` to the receiver's \`/annotations/<id>/status\` (token in \`.agent-annotations/token.txt\`), or move the record from \`inbox.jsonl\` to \`inbox-resolved.jsonl\` with \`"status": "resolved"\`.
 
 Browser validation:
 - Only validate in a browser if the user explicitly requests it, and only using tools available in your environment.
 `;
+}
+
+function writeCopilotInstructions(dest, force) {
+  const snippet = renderCopilotSnippet();
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, `# GitHub Copilot Instructions\n${snippet.trimStart()}`);
+    return;
+  }
+
+  // The rest of the file belongs to the repo: only ever add or replace our own section.
+  const existing = fs.readFileSync(dest, "utf8");
+  const start = existing.indexOf("## Agent Annotations");
+  if (start === -1) {
+    fs.appendFileSync(dest, snippet);
+    return;
+  }
+  if (!force) return;
+  const nextHeading = existing.slice(start + 1).search(/^## /m);
+  const end = nextHeading === -1 ? existing.length : start + 1 + nextHeading;
+  const rest = existing.slice(end);
+  fs.writeFileSync(dest, `${existing.slice(0, start)}${snippet.trim()}\n${rest ? `\n${rest}` : ""}`);
 }
 
 function runInit(args, repoRoot) {
@@ -308,16 +330,7 @@ function runInit(args, repoRoot) {
     for (const agent of agents) {
       if (agent === "copilot") {
         // Copilot uses instruction files (not SKILL.md)
-        const dest = copilotInstructionsPath(repoRoot);
-        if (!args.force && fs.existsSync(dest)) {
-          const existing = fs.readFileSync(dest, "utf8");
-          if (!existing.includes("## Agent Annotations")) {
-            fs.appendFileSync(dest, renderCopilotSnippet());
-          }
-        } else {
-          fs.mkdirSync(path.dirname(dest), { recursive: true });
-          fs.writeFileSync(dest, `# GitHub Copilot Instructions\n${renderCopilotSnippet().trimStart()}`);
-        }
+        writeCopilotInstructions(copilotInstructionsPath(repoRoot), args.force);
         continue;
       }
 

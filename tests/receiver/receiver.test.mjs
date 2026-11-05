@@ -87,6 +87,7 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
     const created = await createResponse.json();
     assert.equal(createResponse.status, 200);
     assert.ok(created.id);
+    assert.doesNotMatch(created.attachments[0].path, /\\/, "stored paths must be portable across OSes");
 
     const unauthorizedEdit = await fetch(`${baseUrl}/annotations/${created.id}`, {
       method: "PATCH",
@@ -197,9 +198,39 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
     });
     assert.equal(escapedAsset.status, 400);
 
-    const listResponse = await fetch(`${baseUrl}/annotations?status=open`);
+    const unauthorizedList = await fetch(`${baseUrl}/annotations?status=open`);
+    assert.equal(unauthorizedList.status, 401);
+    const listResponse = await fetch(`${baseUrl}/annotations?status=open&limit=abc`, {
+      headers: { "X-Annotation-Token": token }
+    });
     const list = await listResponse.json();
     assert.equal(list.annotations.find((annotation) => annotation.id === created.id).comment, "Updated comment");
+
+    const createWithId = (id) => fetch(`${baseUrl}/annotations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Annotation-Token": token
+      },
+      body: JSON.stringify({
+        annotation: { id, routeKey: "client-id", comment: "Client ID" },
+        assets: [{ name: "x.png", mime: "image/png", dataBase64: imageBytes.toString("base64") }]
+      })
+    });
+    assert.equal((await createWithId("../../escaped")).status, 400);
+    await assert.rejects(access(path.join(temporaryRoot, ".agent-annotations/escaped_0_x.png")));
+    assert.equal((await createWithId(created.id)).status, 409);
+    assert.equal((await createWithId("client-chosen.id_1")).status, 200);
+
+    const malformedId = await fetch(`${baseUrl}/annotations/%E0%A4%A`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Annotation-Token": token
+      },
+      body: JSON.stringify({ comment: "Malformed" })
+    });
+    assert.equal(malformedId.status, 400);
   } finally {
     await stopProcess(receiver);
     await rm(temporaryRoot, { recursive: true, force: true });

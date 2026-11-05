@@ -26,11 +26,30 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
    - In `chrome://extensions` (Developer mode), **drag the folder in** (or click **Load unpacked** and select it)
 2. In the repo you want to write annotations into, run (and keep it running):
    ```bash
-   pnpm dlx agent-annotations setup
+   pnpm dlx agent-annotations@latest setup
    ```
    If you’re using a specific agent, set it explicitly (example: `--agent claude`).
 3. Paste the token into the extension’s connection settings (it’s also saved to `.agent-annotations/token.txt`)
 4. In your agent, invoke: `check-agent-annotations`
+
+### Updating an existing repo integration
+
+Update the extension and every connected repo integration together. `setup` is
+non-destructive by default: it preserves existing integration files, so running
+it again without `--force` can restart an older repo-local receiver.
+
+1. Stop the receiver running for that repo (`Ctrl+C` in its terminal).
+2. From the repo root, refresh the managed integration files and restart the receiver:
+   ```bash
+   pnpm dlx agent-annotations@latest setup --force
+   ```
+
+If you customized the installed agent skill or instructions and want to leave
+them untouched, use:
+
+```bash
+pnpm dlx agent-annotations@latest setup --force --skill none
+```
 
 ### Daily use
 
@@ -47,8 +66,10 @@ Image attachments appear as square thumbnails; selecting one opens the full
 image with its stored path below it.
 
 What `setup` does:
+
 - Installs the skill/instructions into the repo (so your agent will read `.agent-annotations/`)
 - Installs `.tools/agent-annotations-receiver.cjs` and starts the receiver (writes `.agent-annotations/` into the repo)
+- Preserves existing integration files unless `--force` is supplied
 
 ---
 
@@ -93,8 +114,12 @@ Shortcut to toggle annotation mode:
 ### Option A: one command (recommended)
 From the repo root you want to write `.agent-annotations/` into (keeps running):
 ```bash
-pnpm dlx agent-annotations setup
+pnpm dlx agent-annotations@latest setup
 ```
+
+For an existing installation, follow [Updating an existing repo
+integration](#updating-an-existing-repo-integration). Running `setup` without
+`--force` does not replace the receiver already copied into the repo.
 
 ### Option B: start again later
 After you’ve run `setup` once, you can start the receiver again with:
@@ -130,7 +155,7 @@ pnpm dlx agent-annotations init
   - `auto` detects common agent config folders and falls back to `codex`
 - `--skill repo|user|none` (default: `repo`)
 - `--receiver repo|none` (default: `repo`)
-- `--force` overwrite existing files
+- `--force` overwrite existing managed files (required when updating a repo integration)
 
 ### Examples
 

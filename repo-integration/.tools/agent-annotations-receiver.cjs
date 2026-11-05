@@ -29,6 +29,9 @@ const assetDirs = {
   resolved: path.join(dataDir, "assets", "resolved")
 };
 const assetStore = createAssetStore(repoRoot, assetDirs);
+// The extension caps attachments at 20 MiB decoded; base64 adds a third.
+const MAX_CREATE_BODY_BYTES = 32 * 1024 * 1024;
+const ANNOTATION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 class RequestError extends Error {
   constructor(status, message) {
@@ -52,7 +55,7 @@ function loadOrCreateToken() {
     if (error.code !== "ENOENT") throw error;
   }
   const token = crypto.randomBytes(18).toString("base64url");
-  fs.writeFileSync(files.token, `${token}\n`, "utf8");
+  fs.writeFileSync(files.token, `${token}\n`, { encoding: "utf8", mode: 0o600 });
   return token;
 }
 
@@ -85,10 +88,24 @@ function normalizedSeverity(value) {
   return severity;
 }
 
+function annotationId(value) {
+  const supplied = String(value || "").trim();
+  if (!supplied) return `ann_${new Date().toISOString().replace(/[:.]/g, "-")}_${crypto.randomBytes(4).toString("hex")}`;
+  // IDs become part of asset filenames, so only plain filename characters are allowed.
+  if (!ANNOTATION_ID_PATTERN.test(supplied)) {
+    throw new RequestError(400, "Annotation 'id' may only contain letters, digits, '.', '_' and '-'.");
+  }
+  const existing = [...readJsonl(files.open), ...readJsonl(files.resolved)];
+  if (existing.some((annotation) => annotation?.id === supplied)) {
+    throw new RequestError(409, `Annotation already exists: ${supplied}`);
+  }
+  return supplied;
+}
+
 function createAnnotation(body) {
   const annotation = body?.annotation;
   if (!annotation || typeof annotation !== "object") throw new RequestError(400, "Missing 'annotation' object.");
-  const id = String(annotation.id || "").trim() || `ann_${new Date().toISOString().replace(/[:.]/g, "-")}_${crypto.randomBytes(4).toString("hex")}`;
+  const id = annotationId(annotation.id);
   const assets = Array.isArray(body.assets) ? body.assets : [];
   const attachments = assetStore.storeUploads(id, assets);
   const stored = {
@@ -106,7 +123,7 @@ function createAnnotation(body) {
 function listAnnotations(url) {
   const status = (url.searchParams.get("status") || "open").trim();
   const routeKey = (url.searchParams.get("routeKey") || "").trim();
-  const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") || "50", 10)));
+  const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit"), 10) || 50));
   let annotations = readJsonl(status === "resolved" ? files.resolved : files.open);
   if (status !== "resolved") annotations = annotations.filter((annotation) => (annotation.status || "open") === "open");
   if (routeKey) annotations = annotations.filter((annotation) => (annotation.routeKey || "") === routeKey);
@@ -183,6 +200,14 @@ function requireAuth(request, token) {
   }
 }
 
+function pathId(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    throw new RequestError(400, "Malformed annotation ID.");
+  }
+}
+
 async function handleRequest(request, response, token) {
   if (request.method === "OPTIONS") {
     response.writeHead(204, corsHeaders);
@@ -195,19 +220,21 @@ async function handleRequest(request, response, token) {
     return;
   }
   if (request.method === "GET" && url.pathname === "/annotations") {
+    // CORS allows any origin, so reads need the token too or any web page could list the inbox.
+    requireAuth(request, token);
     sendJson(response, 200, { ok: true, annotations: listAnnotations(url) });
     return;
   }
   if (request.method === "POST" && url.pathname === "/annotations") {
     requireAuth(request, token);
-    const annotation = createAnnotation(await readJson(request, 25 * 1024 * 1024));
+    const annotation = createAnnotation(await readJson(request, MAX_CREATE_BODY_BYTES));
     sendJson(response, 200, { ok: true, id: annotation.id, attachments: annotation.attachments });
     return;
   }
   const attachmentMatch = /^\/annotations\/([^/]+)\/attachments\/(\d+)$/.exec(url.pathname);
   if (request.method === "GET" && attachmentMatch) {
     requireAuth(request, token);
-    const attachment = findAttachment(decodeURIComponent(attachmentMatch[1]), Number(attachmentMatch[2]));
+    const attachment = findAttachment(pathId(attachmentMatch[1]), Number(attachmentMatch[2]));
     const file = fs.readFileSync(attachment.absolutePath);
     response.writeHead(200, {
       ...corsHeaders,
@@ -223,7 +250,7 @@ async function handleRequest(request, response, token) {
   const annotationMatch = /^\/annotations\/([^/]+)$/.exec(url.pathname);
   if (request.method === "PATCH" && annotationMatch) {
     requireAuth(request, token);
-    const annotation = updateOpenComment(decodeURIComponent(annotationMatch[1]), (await readJson(request)).comment);
+    const annotation = updateOpenComment(pathId(annotationMatch[1]), (await readJson(request)).comment);
     sendJson(response, 200, { ok: true, annotation });
     return;
   }
@@ -232,7 +259,7 @@ async function handleRequest(request, response, token) {
     requireAuth(request, token);
     const body = await readJson(request);
     if (body.status !== "resolved") throw new RequestError(400, "Only status=resolved is supported.");
-    const annotation = resolveAnnotation(decodeURIComponent(statusMatch[1]));
+    const annotation = resolveAnnotation(pathId(statusMatch[1]));
     sendJson(response, 200, { ok: true, id: annotation.id, status: annotation.status });
     return;
   }
@@ -248,6 +275,14 @@ function main() {
       if (!response.headersSent) sendJson(response, error.status || 500, { ok: false, error: error.message });
       else response.destroy(error);
     });
+  });
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(`Port ${port} is already in use. Stop the other receiver or start this one with --port <port>.`);
+    } else {
+      console.error(`Receiver could not start: ${error.message}`);
+    }
+    process.exit(1);
   });
   server.listen(port, host, () => {
     console.log(`Agent Annotations Receiver\nRepo root: ${repoRoot}`);
