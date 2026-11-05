@@ -48,7 +48,8 @@
       parts.unshift(`${current.tagName.toLowerCase()}[${Math.max(1, siblings.indexOf(current) + 1)}]`);
       current = current.parentElement;
     }
-    return `/${parts.join("/")}`;
+    // A walk that stopped before <html> starts below an unknown ancestor, so it must be relative.
+    return `${current ? "//" : "/"}${parts.join("/")}`;
   }
 
   function buildLocatorBundle(element) {
@@ -96,7 +97,7 @@
       textHint,
       attrs: {
         id: element.id || null,
-        class: element.className ? String(element.className).slice(0, 180) : null,
+        class: api.getAttr(element, "class")?.slice(0, 180) || null,
         name: api.getAttr(element, "name"),
         href: api.getAttr(element, "href")
       }

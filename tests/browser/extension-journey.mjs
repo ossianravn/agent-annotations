@@ -99,7 +99,7 @@ try {
   await waitForEvaluation(
     chrome,
     panelSession,
-    "document.querySelector('#connStatusLabel').textContent === 'CONNECTED'",
+    "document.querySelector('#connStatusLabel').textContent === 'Connected'",
     "receiver connection"
   );
   await chrome.command("Runtime.evaluate", { expression: "document.querySelector('#settingsDialog').close()" }, panelSession);

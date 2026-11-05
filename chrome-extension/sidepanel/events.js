@@ -36,27 +36,33 @@ import {
   updateSendEnabled,
   withControlFeedback
 } from "./feedback.js";
-import { postAnnotation, saveSettings, testConnection } from "./receiver.js";
+import { fillSettingsForm, postAnnotation, saveSettings, testConnection } from "./receiver.js";
 import { discardDraft, scheduleDraftSave } from "./drafts.js";
+import { bindTabs } from "./tabs.js";
 
 async function runControl(control, task, options) {
   try {
     return await withControlFeedback(control, task, options);
   } catch (error) {
-    announceAction(error?.message || error);
+    announceAction(error?.message || error, "error");
     return null;
   }
 }
 
 function bindSettings() {
   $("openSettings").addEventListener("click", () => {
+    if ($("settingsDialog").open) return;
+    // Edits abandoned by closing without Save must not linger in the form.
+    fillSettingsForm();
     $("settingsHint").textContent = "";
-    if (!$("settingsDialog").open) $("settingsDialog").showModal();
+    $("settingsDialog").showModal();
   });
   $("closeSettings").addEventListener("click", () => $("settingsDialog").close());
   bindBackdropClose($("settingsDialog"), () => $("settingsDialog").close());
-  $("showToken").addEventListener("change", () => {
-    $("token").type = $("showToken").checked ? "text" : "password";
+  $("showToken").addEventListener("click", () => {
+    const reveal = $("token").type === "password";
+    $("token").type = reveal ? "text" : "password";
+    $("showToken").querySelector(".btn-text").textContent = reveal ? "Hide" : "Show";
   });
 
   $("saveSettings").addEventListener("click", () => runControl($("saveSettings"), async () => {
@@ -96,8 +102,8 @@ function bindCapture() {
 
 function bindComposer() {
   $("annotateToggle").addEventListener("change", async () => {
-    await refreshActiveTabInfo();
     try {
+      await refreshActiveTabInfo();
       await setAnnotateMode($("annotateToggle").checked);
     } catch (error) {
       showAnnotateError(error?.message || error);
@@ -129,14 +135,28 @@ function bindComposer() {
         reader.onerror = () => reject(new Error("The pasted image could not be read."));
         reader.readAsDataURL(file);
       });
-      addAttachment({ name: "pasted.png", mime: file.type || "image/png", dataUrl });
+      const mime = file.type || "image/png";
+      const extension = { "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" }[mime] || "png";
+      addAttachment({ name: `pasted.${extension}`, mime, dataUrl });
       announceAction("Pasted image attached.");
     } catch (error) {
-      announceAction(error?.message || error);
+      announceAction(error?.message || error, "error");
     }
   });
 
   $("send").addEventListener("click", () => sendAnnotation());
+}
+
+async function resetComposerAfterSend() {
+  $("comment").value = "";
+  clearAttachments();
+  await clearSelectedElement();
+  const results = await Promise.allSettled([discardDraft(), setAnnotateMode(false)]);
+  const failures = results.filter((result) => result.status === "rejected");
+  for (const failure of failures) {
+    console.error("Annotation saved, but the composer could not be fully reset:", failure.reason);
+  }
+  return failures.length === 0;
 }
 
 async function sendAnnotation() {
@@ -144,27 +164,14 @@ async function sendAnnotation() {
   state.isSending = true;
   updateSendEnabled();
   await runControl($("send"), async () => {
-    let draftCleared = true;
-    await saveSettings();
     await refreshActiveTabInfo();
-    await refreshSelectedElementGeometry();
+    await refreshSelectedElementGeometry({ allowStored: true });
     await postAnnotation();
-    await clearSelectedElement();
-    await setAnnotateMode(false);
-    $("comment").value = "";
-    clearAttachments();
-    try {
-      await discardDraft();
-    } catch (error) {
-      draftCleared = false;
-      console.error("Annotation saved, but its draft could not be deleted:", error);
-    }
+    // The annotation is stored now: a cleanup failure must not read as a failed
+    // save, or the user would send it again.
+    const reset = await resetComposerAfterSend();
     await refreshList();
-    announceAction(
-      draftCleared
-        ? "Annotation saved."
-        : "Annotation saved, but its old draft could not be deleted."
-    );
+    announceAction(reset ? "Annotation saved." : "Annotation saved, but its draft could not be cleared.");
   }, { busyText: "Saving…", okText: "Saved", errorText: "Failed", restoreDisabled: false });
   state.isSending = false;
   updateSendEnabled();
@@ -199,11 +206,11 @@ export function bindUI() {
   bindCapture();
   bindComposer();
   bindDialogs();
-  $("refreshTab").addEventListener("click", async () => {
+  bindTabs();
+  $("refreshList").addEventListener("click", async () => {
     await refreshActiveTabInfo();
     await refreshList();
   });
-  $("refreshList").addEventListener("click", refreshList);
   setSeverity(state.severity);
   renderSelectedElement();
   updateSendEnabled();

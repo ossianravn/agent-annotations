@@ -1,4 +1,4 @@
-import { $, state } from "./shared.js";
+import { $, closeIcon, displayPath, state } from "./shared.js";
 import { updateSendEnabled } from "./feedback.js";
 import { scheduleDraftSave } from "./drafts.js";
 
@@ -74,7 +74,9 @@ export function openAssetPreview(attachment) {
   state.previewAttachment = attachment;
   $("assetTitle").textContent = attachment.name || "Attachment";
   const size = formatBytes(estimateBytesFromDataUrl(attachment.dataUrl));
-  $("assetMeta").textContent = attachment.path || [attachment.mime || "attachment", size].filter(Boolean).join(" • ");
+  $("assetMeta").textContent = attachment.path
+    ? displayPath(attachment.path)
+    : [attachment.mime || "attachment", size].filter(Boolean).join(" · ");
   $("assetImg").src = source;
   $("assetImg").alt = attachment.name || "Attachment preview";
   $("assetDialog").showModal();
@@ -95,7 +97,7 @@ export function closeAssetPreview() {
 export function renderAttachments() {
   const root = $("attachments");
   root.replaceChildren();
-  $("attachmentsSection").hidden = state.attachments.length === 0;
+  $("clearAttachments").hidden = state.attachments.length === 0;
 
   for (const attachment of state.attachments) {
     const card = document.createElement("div");
@@ -125,14 +127,15 @@ export function renderAttachments() {
     detail.className = "sub";
     detail.textContent = [attachment.mime || "attachment", formatBytes(estimateBytesFromDataUrl(attachment.dataUrl))]
       .filter(Boolean)
-      .join(" • ");
+      .join(" · ");
     meta.append(name, detail);
 
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.className = "icon-btn ghost remove";
+    remove.className = "icon-btn ghost";
+    remove.title = "Remove";
     remove.setAttribute("aria-label", `Remove ${attachment.name}`);
-    remove.textContent = "✕";
+    remove.appendChild(closeIcon());
     remove.addEventListener("click", () => removeAttachment(attachment.id));
     card.append(preview, meta, remove);
     root.appendChild(card);

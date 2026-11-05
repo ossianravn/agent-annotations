@@ -26,3 +26,27 @@ test("CSS identifier fallback escapes leading digits and punctuation", async () 
   const api = await locatorApi();
   assert.equal(api.cssEscapeIdentifier("1:panel"), "\\31 \\:panel");
 });
+
+function fakeElement(tagName, parent = null) {
+  const element = {
+    nodeType: 1,
+    tagName: tagName.toUpperCase(),
+    id: "",
+    parentElement: parent,
+    parentNode: parent || { children: [] },
+    children: []
+  };
+  element.parentNode.children.push(element);
+  return element;
+}
+
+test("XPath paths that stop below the document root are relative", async () => {
+  const api = await locatorApi();
+  const html = fakeElement("html");
+  const body = fakeElement("body", html);
+  assert.equal(api.buildXPath(body), "/html[1]/body[1]");
+
+  let deep = body;
+  for (const tagName of ["main", "section", "div", "ul", "li"]) deep = fakeElement(tagName, deep);
+  assert.equal(api.buildXPath(deep), "//main[1]/section[1]/div[1]/ul[1]/li[1]");
+});

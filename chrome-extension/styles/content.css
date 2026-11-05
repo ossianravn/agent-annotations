@@ -1,11 +1,48 @@
-.attachments,
-.list {
+.selected {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-inline-size: 32rem;
+  min-block-size: 2.5rem;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-inline-start: 2px solid var(--rule);
+  background: var(--fill);
+}
+
+.selected-summary {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.selected-summary.is-none {
+  color: var(--muted);
+}
+
+.comment {
+  min-block-size: 6rem;
+}
+
+.choice-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice-fieldset > .section-title {
+  margin-block-end: var(--space-2);
+}
+
+.capture-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .attachments {
-  gap: 0.5rem;
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 26rem;
 }
 
 .attachments:empty {
@@ -13,32 +50,33 @@
 }
 
 .attachment {
-  box-sizing: border-box;
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  padding: 0.625rem;
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  position: relative;
+  gap: var(--space-3);
+  min-inline-size: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--hairline);
 }
 
 .attachment .thumb {
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  border: 1px solid var(--rule);
-  background: var(--bg);
-  flex: none;
   display: grid;
   place-items: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  flex: none;
   overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  background: var(--fill);
+  color: var(--muted);
+  font-size: 0.6875rem;
 }
 
 .attachment .thumb img {
+  display: block;
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
-  display: block;
 }
 
 .attachment .thumb.is-clickable {
@@ -46,163 +84,157 @@
 }
 
 .attachment .thumb.is-clickable:hover {
-  background: var(--text);
+  border-color: var(--rule);
 }
 
 .attachment .meta {
-  min-inline-size: 0;
   flex: 1;
+  min-inline-size: 0;
 }
 
 .attachment .name,
 .attachment .sub {
-  font-size: 0.75rem;
-  white-space: nowrap;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .attachment .name {
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 500;
 }
 
 .attachment .sub {
-  margin-block-start: 0.25rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
-.icon-btn {
-  inline-size: 2rem;
-  block-size: 1.875rem;
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-}
-
-.icon-btn:hover:not(:disabled) {
-  background: var(--text);
-  color: var(--bg);
-}
-
-.icon-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.icon-btn.ghost {
-  background: transparent;
-}
-
-.attachment .remove {
-  position: absolute;
-  inset-block-start: 0.5rem;
-  inset-inline-end: 0.5rem;
+.list-panel {
+  gap: var(--space-2);
 }
 
 .list {
-  gap: 0.625rem;
+  display: grid;
+  gap: var(--space-2);
 }
 
-.item {
-  box-sizing: border-box;
-  inline-size: 100%;
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  padding: 0.625rem;
-  cursor: pointer;
-  text-align: start;
-  transition: background 120ms ease, color 120ms ease, transform 80ms ease;
-}
-
-.item:hover,
-.item:focus-visible {
-  background: var(--text);
-  color: var(--bg);
-}
-
-.item:active {
-  transform: translateY(1px);
-}
-
-.item .topline {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.625rem;
-  margin-block-end: 0.5rem;
-}
-
-.item .badges {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-inline-size: 0;
-}
-
-.tag {
-  border: 1px solid currentColor;
-  padding: 0.125rem 0.375rem;
-  font-size: 0.6875rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.tag .dot {
-  display: inline-block;
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  margin-inline-end: 0.375rem;
-  background: currentColor;
-  vertical-align: -1px;
-}
-
-.id {
-  font-size: 0.6875rem;
+.empty {
+  padding-block: var(--space-4);
   color: var(--muted);
 }
 
-.item:hover .id,
-.item:focus-visible .id {
-  color: color-mix(in srgb, var(--bg) 80%, transparent);
+.empty strong {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.item {
+  display: grid;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  text-align: start;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--fill);
+}
+
+.item-top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.type-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.item-tags,
+.item-meta {
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.item-comment {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 .footer {
   flex: none;
-  padding: 0.75rem 0.875rem 0.875rem;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-block-start: 1px solid var(--hairline);
   background: var(--bg);
 }
 
-.send-btn {
+.footer > * {
   inline-size: 100%;
-  border: 0;
-  background: var(--text);
-  color: var(--bg);
-  padding: 0.875rem 0.75rem;
-  cursor: pointer;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  max-inline-size: var(--measure);
+  margin-inline: auto;
+}
+
+.action-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.action-status:empty {
+  display: none;
+}
+
+.action-status.is-error {
+  color: var(--err);
+}
+
+.send-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.625rem;
+  min-block-size: 2.5rem;
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .send-btn:hover:not(:disabled) {
-  background: #000000;
+  opacity: 0.86;
 }
 
-.send-btn:active:not(:disabled) {
-  transform: translateY(1px);
+.send-btn.is-ok {
+  background: var(--ok);
 }
 
-.send-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.send-btn.is-error {
+  background: var(--err);
+}
+
+@media (pointer: coarse) {
+  .send-btn {
+    min-block-size: 2.75rem;
+  }
 }

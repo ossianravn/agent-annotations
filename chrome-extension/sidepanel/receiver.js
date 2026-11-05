@@ -46,13 +46,16 @@ async function responseJson(response) {
   }
 }
 
+export function fillSettingsForm() {
+  $("serverUrl").value = state.settings.serverUrl;
+  $("token").value = state.settings.token;
+}
+
 export async function loadSettings() {
   const saved = await chrome.storage.local.get(["serverUrl", "token"]);
   state.settings.serverUrl = normalizeServerUrl(saved.serverUrl || DEFAULT_SERVER_URL);
   state.settings.token = String(saved.token || "").trim();
-  $("serverUrl").value = state.settings.serverUrl;
-  $("token").value = state.settings.token;
-  $("serverUrlDisplay").textContent = state.settings.serverUrl;
+  fillSettingsForm();
 }
 
 export async function saveSettings() {
@@ -61,8 +64,7 @@ export async function saveSettings() {
   await ensureReceiverPermission(serverUrl, true);
   await chrome.storage.local.set({ serverUrl, token });
   state.settings = { serverUrl, token };
-  $("serverUrl").value = serverUrl;
-  $("serverUrlDisplay").textContent = serverUrl;
+  fillSettingsForm();
 }
 
 function formSettings() {
@@ -150,11 +152,12 @@ export async function postAnnotation() {
 
 export async function getAnnotationsForRoute() {
   if (!state.routeKey) return [];
+  if (!state.settings.token) throw new Error("add the receiver token in Settings.");
   const url = new URL(`${state.settings.serverUrl}/annotations`);
   url.searchParams.set("status", "open");
   url.searchParams.set("routeKey", state.routeKey);
   url.searchParams.set("limit", "50");
-  const response = await fetchWithTimeout(url);
+  const response = await fetchWithTimeout(url, { headers: { "X-Annotation-Token": state.settings.token } });
   const data = await responseJson(response);
   if (!response.ok) throw new Error(data.error || `Receiver error (${response.status}).`);
   if (!Array.isArray(data.annotations)) throw new Error("Receiver returned an invalid annotation list.");

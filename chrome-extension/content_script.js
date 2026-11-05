@@ -77,6 +77,16 @@
     selectElement(element);
   }
 
+  // Only the click selects, but menus and drags often start on press, so the
+  // page must not see presses either while annotating.
+  const PRESS_EVENTS = ["pointerdown", "pointerup", "mousedown", "mouseup", "dblclick", "auxclick"];
+
+  function onPress(event) {
+    if (!isSelectable(event.target)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+
   function onFocusIn(event) {
     if (!isSelectable(event.target)) return;
     hoveredElement = event.target;
@@ -85,6 +95,8 @@
 
   function onKeyDown(event) {
     if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
       disable();
       chrome.runtime.sendMessage({ type: "ANNOTATE_DISABLED_BY_PAGE" }, () => {
         void chrome.runtime.lastError;
@@ -103,6 +115,7 @@
     overlay = api.createOverlay();
     if (selectedElement?.isConnected) overlay.moveSelection(selectedElement);
     document.addEventListener("pointermove", onPointerMove, true);
+    for (const type of PRESS_EVENTS) document.addEventListener(type, onPress, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("focusin", onFocusIn, true);
     document.addEventListener("keydown", onKeyDown, true);
@@ -114,6 +127,7 @@
     if (!enabled) return;
     enabled = false;
     document.removeEventListener("pointermove", onPointerMove, true);
+    for (const type of PRESS_EVENTS) document.removeEventListener(type, onPress, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("focusin", onFocusIn, true);
     document.removeEventListener("keydown", onKeyDown, true);

@@ -5,8 +5,11 @@ import { $ } from "./shared.js";
 let objectUrls = [];
 let renderId = 0;
 
-function filename(path) {
-  return String(path || "attachment").split(/[\\/]/).pop() || "attachment";
+function filename(annotation, path, index) {
+  const base = String(path || "attachment").split(/[\\/]/).pop() || "attachment";
+  // Stored files carry an "<id>_<index>_" prefix to stay unique on disk.
+  const prefix = `${annotation.id}_${index}_`;
+  return base.startsWith(prefix) ? base.slice(prefix.length) : base;
 }
 
 function releaseObjectUrls() {
@@ -36,7 +39,7 @@ function unavailableTile(name) {
 }
 
 async function loadAttachment(annotation, attachment, index, currentRenderId) {
-  const name = filename(attachment.path);
+  const name = filename(annotation, attachment.path, index);
   try {
     const blob = await fetchAnnotationAttachment(annotation, index);
     if (currentRenderId !== renderId) return null;

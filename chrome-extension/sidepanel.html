@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>Agent Annotations</title>
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/controls.css">
@@ -12,146 +13,148 @@
   <body class="app">
     <h1 class="sr-only">Agent Annotations</h1>
     <header class="header">
-      <div class="header-left">
-        <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">OFFLINE</span>
-      </div>
-      <div class="header-right">
-        <button id="refreshTab" class="hdr-btn" title="Refresh" type="button" aria-label="Refresh">↻</button>
-        <button id="openSettings" class="hdr-btn" title="Settings" type="button" aria-label="Settings">⋯</button>
-        <label class="switch hdr-switch" aria-label="Annotate mode">
-          <input type="checkbox" id="annotateToggle">
-          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+      <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">Offline</span>
+      <div class="header-actions">
+        <label class="mode-switch" title="Annotate mode (Ctrl+Shift+Y)">
+          <span class="mode-label">Annotate</span>
+          <span class="switch">
+            <input type="checkbox" id="annotateToggle" role="switch">
+            <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+          </span>
         </label>
+        <button id="openSettings" class="icon-btn ghost" type="button" title="Settings" aria-label="Settings">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
     </header>
 
+    <nav class="tabs" role="tablist" aria-label="Annotations">
+      <button id="tabNew" class="tab" type="button" role="tab" aria-selected="true" aria-controls="panelNew">New</button>
+      <button id="tabOpen" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panelOpen" tabindex="-1">
+        Open <span id="openCount" class="count" hidden></span>
+      </button>
+    </nav>
+
     <main class="main">
       <div class="inline-error" id="annotateError" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-      <div class="sr-only" id="actionStatus" role="status" aria-live="polite" aria-atomic="true"></div>
 
-      <section class="section">
-        <div class="section-head">
-          <h2 class="section-title">Capture</h2>
-        </div>
-        <div class="action-grid">
-          <button id="attachScreenshot" class="action-btn" type="button">
-            <svg class="action-ico" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
-              <path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
-              <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
-              <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
-            </svg>
-            <span class="btn-text action-text">FULLSCREEN</span>
-          </button>
-          <button id="attachElementShot" class="action-btn" type="button">
-            <svg class="action-ico" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m16 18 6-6-6-6"/>
-              <path d="m8 6-6 6 6 6"/>
-            </svg>
-            <span class="btn-text action-text">ELEMENT</span>
-          </button>
-          <button id="clearAttachments" class="action-btn" type="button" title="Clear attachments">
-            <svg class="action-ico" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-              <path d="M3 6h18"/>
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            <span class="btn-text action-text">CLEAR</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-head">
-          <h2 class="section-title">Selected Element</h2>
-          <div class="section-actions">
-            <button id="clearSelected" class="text-btn" type="button" title="Clear selected element" aria-label="Clear selected element" hidden>X</button>
+      <div id="panelNew" class="tab-panel" role="tabpanel" aria-labelledby="tabNew">
+        <section class="section">
+          <h2 class="section-title">Element</h2>
+          <div class="selected" id="selectedBox">
+            <span class="selected-summary is-none" id="selectedSummary">None selected</span>
+            <button id="clearSelected" class="icon-btn ghost" type="button" title="Clear selected element" aria-label="Clear selected element" hidden>
+              <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
           </div>
-        </div>
-        <div class="pane-selected" id="selectedSummary">[ NONE ]</div>
-      </section>
+          <p class="help" id="selectedHint">Turn on Annotate, then click an element on the page.</p>
+        </section>
 
-      <section class="section" id="attachmentsSection" hidden>
-        <div class="section-head">
-          <h2 class="section-title">Attachments</h2>
-        </div>
-        <div id="attachments" class="attachments"></div>
-      </section>
-
-      <section class="section">
-        <div class="section-head">
+        <section class="section">
           <h2 class="section-title"><label for="comment">Comment</label></h2>
-        </div>
-        <textarea id="comment" name="comment" class="comment" rows="3" placeholder="Type annotation here…" aria-describedby="commentHint"></textarea>
-        <div id="commentHint" class="help">Paste an image to attach it.</div>
-      </section>
+          <textarea id="comment" name="comment" class="field-input comment" rows="4" placeholder="What should change?" aria-describedby="commentHint"></textarea>
+          <p id="commentHint" class="help">Paste an image to attach it.</p>
+        </section>
 
-      <fieldset class="section choice-fieldset">
-        <legend class="section-title">Annotation type</legend>
-        <div class="sev-group">
-          <label class="sev-btn sev-bug" data-sev="bug">
-            <input class="sr-only" type="radio" name="severityChoice" value="bug">
-            <span>BUG</span>
-          </label>
-          <label class="sev-btn sev-feature" data-sev="feature">
-            <input class="sr-only" type="radio" name="severityChoice" value="feature">
-            <span>NEW FEATURE</span>
-          </label>
-          <label class="sev-btn sev-info" data-sev="info">
-            <input class="sr-only" type="radio" name="severityChoice" value="info" checked>
-            <span>REQUEST</span>
-          </label>
-        </div>
-      </fieldset>
+        <fieldset class="section choice-fieldset">
+          <legend class="section-title">Type</legend>
+          <div class="segmented">
+            <label class="segment" data-sev="bug">
+              <input class="sr-only" type="radio" name="severityChoice" value="bug">
+              <span class="sev-dot" aria-hidden="true"></span>Bug
+            </label>
+            <label class="segment" data-sev="feature">
+              <input class="sr-only" type="radio" name="severityChoice" value="feature">
+              <span class="sev-dot" aria-hidden="true"></span>Feature
+            </label>
+            <label class="segment" data-sev="info">
+              <input class="sr-only" type="radio" name="severityChoice" value="info" checked>
+              <span class="sev-dot" aria-hidden="true"></span>Request
+            </label>
+          </div>
+        </fieldset>
 
-      <section class="section">
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Attachments</h2>
+            <button id="clearAttachments" class="text-btn" type="button" hidden>Clear all</button>
+          </div>
+          <div class="capture-row">
+            <button id="attachScreenshot" class="btn" type="button" title="Capture the visible page">
+              <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+              </svg>
+              <span class="btn-text">Page</span>
+            </button>
+            <button id="attachElementShot" class="btn" type="button" title="Capture the selected element">
+              <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+              </svg>
+              <span class="btn-text">Element</span>
+            </button>
+          </div>
+          <div id="attachments" class="attachments"></div>
+        </section>
+      </div>
+
+      <div id="panelOpen" class="tab-panel list-panel" role="tabpanel" aria-labelledby="tabOpen" hidden>
         <div class="section-head">
-          <h2 class="section-title">Unresolved</h2>
-          <button id="refreshList" class="text-btn" type="button">REFRESH</button>
+          <h2 class="section-title">Open on this page</h2>
+          <button id="refreshList" class="text-btn" type="button">Refresh</button>
         </div>
-        <div id="list" class="list" aria-live="polite"></div>
-      </section>
+        <div id="list" class="list"></div>
+      </div>
 
       <dialog id="detailDialog" class="dialog" aria-labelledby="detailDialogTitle">
         <div class="dialog-header">
           <h2 class="dialog-title" id="detailDialogTitle">Annotation</h2>
-          <button id="closeDetail" class="icon-btn ghost" type="button" aria-label="Close annotation details">✕</button>
+          <button id="closeDetail" class="icon-btn ghost" type="button" aria-label="Close annotation details">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
         <div class="dialog-body">
-          <div class="kv">
-            <div class="k">ID</div>
-            <div class="v mono" id="detailId">—</div>
+          <dl class="meta-list">
+            <div class="kv">
+              <dt class="k">Element</dt>
+              <dd class="v" id="detailLocator">—</dd>
+            </div>
+            <div class="kv">
+              <dt class="k">ID</dt>
+              <dd class="v" id="detailId">—</dd>
+            </div>
+          </dl>
+          <div class="field">
+            <label class="field-label" for="detailComment">Comment</label>
+            <textarea class="field-input detail-comment" id="detailComment" name="detailComment" rows="5" required aria-describedby="detailHint"></textarea>
           </div>
-          <div class="kv">
-            <div class="k">Locator</div>
-            <div class="v mono" id="detailLocator">—</div>
-          </div>
-          <div class="kv">
-            <label class="k" for="detailComment">Comment</label>
-            <textarea class="detail-comment" id="detailComment" name="detailComment" rows="6" required aria-describedby="detailHint"></textarea>
-          </div>
-          <div class="kv">
-            <div class="k">Attachments</div>
+          <div class="field">
+            <span class="field-label">Attachments</span>
             <div class="detail-attachments" id="detailAttachments"></div>
           </div>
-          <div class="action-row">
-            <button id="saveDetail" class="btn grow" type="button" disabled>Save changes</button>
-            <button id="copyPrompt" class="btn btn-ghost grow" type="button">Copy as prompt</button>
-            <button id="markResolved" class="btn btn-primary grow" type="button">Resolve</button>
-          </div>
-          <div class="muted tiny" id="detailHint" role="status" aria-live="polite" aria-atomic="true"></div>
+          <p class="help" id="detailHint" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+        <div class="dialog-footer">
+          <button id="copyPrompt" class="btn" type="button">Copy prompt</button>
+          <span class="spacer"></span>
+          <button id="saveDetail" class="btn" type="button" disabled>Save</button>
+          <button id="markResolved" class="btn btn-primary" type="button">Resolve</button>
         </div>
       </dialog>
 
       <dialog id="assetDialog" class="dialog dialog-asset" aria-labelledby="assetTitle">
         <div class="dialog-header">
-          <h2 class="dialog-title mono" id="assetTitle">Attachment</h2>
-          <button id="closeAsset" class="icon-btn ghost" type="button" aria-label="Close attachment preview">✕</button>
+          <h2 class="dialog-title file-title" id="assetTitle">Attachment</h2>
+          <button id="closeAsset" class="icon-btn ghost" type="button" aria-label="Close attachment preview">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
-        <div class="dialog-body dialog-asset-body">
+        <div class="dialog-body">
           <figure class="asset-figure">
             <img id="assetImg" class="asset-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="">
-            <figcaption class="muted tiny asset-caption" id="assetMeta">—</figcaption>
+            <figcaption class="help asset-caption" id="assetMeta">—</figcaption>
           </figure>
         </div>
       </dialog>
@@ -159,46 +162,37 @@
       <dialog id="settingsDialog" class="dialog" aria-labelledby="settingsDialogTitle">
         <div class="dialog-header">
           <h2 class="dialog-title" id="settingsDialogTitle">Settings</h2>
-          <button id="closeSettings" class="icon-btn ghost" type="button" aria-label="Close settings">✕</button>
+          <button id="closeSettings" class="icon-btn ghost" type="button" aria-label="Close settings">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
         <div class="dialog-body">
-          <div class="dialog-section">
-            <h3 class="dialog-section-title">Receiver</h3>
-            <div class="field">
-              <label class="field-label" for="serverUrl">Server URL</label>
-              <input id="serverUrl" name="serverUrl" class="field-input" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:8787">
-            </div>
-            <div class="muted tiny">Current: <span class="mono" id="serverUrlDisplay">—</span></div>
+          <div class="field">
+            <label class="field-label" for="serverUrl">Receiver URL</label>
+            <input id="serverUrl" name="serverUrl" class="field-input field-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:8787">
           </div>
-
-          <div class="dialog-section">
-            <h3 class="dialog-section-title">Auth</h3>
-            <div class="field">
-              <label class="field-label" for="token">Token</label>
-              <input id="token" name="token" class="field-input mono" type="password" autocomplete="new-password" spellcheck="false" placeholder="Token">
+          <div class="field">
+            <label class="field-label" for="token">Token</label>
+            <div class="input-group">
+              <input id="token" name="token" class="field-input field-token" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="tokenHint">
+              <button id="showToken" class="btn" type="button" aria-controls="token"><span class="btn-text">Show</span><span class="sr-only"> token</span></button>
             </div>
-            <label class="check">
-              <input id="showToken" name="showToken" type="checkbox">
-              <span>Show token</span>
-            </label>
+            <p class="help" id="tokenHint">Printed by the receiver and saved in .agent-annotations/token.txt.</p>
           </div>
-
-          <div class="dialog-section">
-            <h3 class="dialog-section-title">Diagnostics</h3>
-            <div class="dialog-actions">
-              <button id="saveSettings" class="btn" type="button">Save</button>
-              <button id="testConn" class="btn" type="button">Test connection</button>
-            </div>
-            <div class="muted tiny" id="settingsHint" role="status" aria-live="polite" aria-atomic="true"></div>
-          </div>
+          <p class="help" id="settingsHint" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+        <div class="dialog-footer">
+          <button id="testConn" class="btn" type="button">Test connection</button>
+          <span class="spacer"></span>
+          <button id="saveSettings" class="btn btn-primary" type="button">Save</button>
         </div>
       </dialog>
     </main>
 
     <footer class="footer">
+      <p id="actionStatus" class="action-status" role="status" aria-live="polite" aria-atomic="true"></p>
       <button id="send" class="send-btn" type="button">
-        <span class="send-text">SAVE ANNOTATION</span>
-        <span class="send-arrow" aria-hidden="true">→</span>
+        <span class="send-text">Save annotation</span>
       </button>
     </footer>
 

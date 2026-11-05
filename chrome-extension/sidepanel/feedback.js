@@ -10,10 +10,10 @@ export function setConnectionStatus(status) {
   const isOk = value === "ok";
   const isWarning = value === "unauthorized" || value === "missing-token";
   const descriptions = {
-    ok: ["CONNECTED", "Connected"],
-    "missing-token": ["TOKEN MISSING", "Token missing"],
-    unauthorized: ["BAD TOKEN", "Bad token"],
-    offline: ["OFFLINE", "Not reachable"]
+    ok: ["Connected", "Receiver connected"],
+    "missing-token": ["Token missing", "Add the receiver token in Settings"],
+    unauthorized: ["Bad token", "The receiver rejected the token"],
+    offline: ["Offline", "Receiver not reachable"]
   };
   const [text, title] = descriptions[value] || descriptions.offline;
   label.textContent = text;
@@ -86,14 +86,23 @@ export function showAnnotateError(message) {
   error.textContent = text;
   if (!text) return;
 
-  const control = $("annotateToggle").closest(".switch");
+  const control = $("annotateToggle").closest(".mode-switch");
   control.classList.remove("is-error");
   requestAnimationFrame(() => control.classList.add("is-error"));
   setTimeout(() => control.classList.remove("is-error"), 700);
 }
 
-export function announceAction(message) {
-  $("actionStatus").textContent = String(message || "");
+let statusTimer = 0;
+
+// Outcomes stay readable for a moment; failures stay until the next message.
+export function announceAction(message, tone = "info") {
+  const status = $("actionStatus");
+  clearTimeout(statusTimer);
+  status.textContent = String(message || "");
+  status.classList.toggle("is-error", tone === "error");
+  if (tone !== "error" && status.textContent) {
+    statusTimer = setTimeout(() => { status.textContent = ""; }, 5000);
+  }
 }
 
 export function updateSendEnabled() {
@@ -102,21 +111,31 @@ export function updateSendEnabled() {
   $("send").disabled = state.isSending || !hasElement || !hasComment;
 }
 
-export function setListMessage(message, className = "muted tiny") {
+export function setListMessage(message, className = "empty") {
   const root = $("list");
   root.replaceChildren();
-  const text = document.createElement("div");
+  const text = document.createElement("p");
   text.className = className;
   text.textContent = message;
   root.appendChild(text);
 }
 
 export function bindBackdropClose(dialog, close) {
-  dialog.addEventListener("click", (event) => {
+  // Keyboard-activated clicks report (0, 0), and a drag that starts inside the
+  // dialog can end on the backdrop, so both press and release must land outside.
+  let pressedOutside = false;
+  const isOutside = (event) => {
+    if (event.target !== dialog) return false;
     const rect = dialog.getBoundingClientRect();
-    const inside =
-      event.clientX >= rect.left && event.clientX <= rect.right &&
-      event.clientY >= rect.top && event.clientY <= rect.bottom;
-    if (!inside) close();
+    return event.clientX < rect.left || event.clientX > rect.right ||
+      event.clientY < rect.top || event.clientY > rect.bottom;
+  };
+  dialog.addEventListener("pointerdown", (event) => {
+    pressedOutside = isOutside(event);
+  });
+  dialog.addEventListener("click", (event) => {
+    const outside = pressedOutside && isOutside(event);
+    pressedOutside = false;
+    if (outside) close();
   });
 }

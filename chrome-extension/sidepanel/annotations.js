@@ -1,74 +1,90 @@
-import { $, normalizedSeverity, state } from "./shared.js";
+import { $, elementSummary, normalizedSeverity, state } from "./shared.js";
 import { setListMessage } from "./feedback.js";
+import { renderOpenCount } from "./tabs.js";
 import { closeAssetPreview } from "./attachments.js";
 import { clearSavedAttachmentPreviews, renderSavedAttachments } from "./saved_attachments.js";
 import { getAnnotationsForRoute, markResolved, updateAnnotationComment } from "./receiver.js";
 
 let detailSessionId = 0;
 let activeCommentSave = null;
+let listRequestId = 0;
+let resolving = false;
 
 function severityLabel(value) {
-  if (value === "bug") return "BUG";
-  if (value === "feature") return "FEATURE";
-  return "REQUEST";
+  if (value === "bug") return "Bug";
+  if (value === "feature") return "Feature";
+  return "Request";
+}
+
+function textSpan(className, text) {
+  const span = document.createElement("span");
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
+function listItem(annotation) {
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = "item";
+  item.addEventListener("click", () => openDetail(annotation));
+
+  const severity = normalizedSeverity(annotation.severity);
+  const type = textSpan("type-label", severityLabel(severity));
+  type.dataset.sev = severity;
+  const dot = textSpan("sev-dot", "");
+  dot.setAttribute("aria-hidden", "true");
+  type.prepend(dot);
+  const top = textSpan("item-top", "");
+  top.appendChild(type);
+  if (annotation.tags?.length) top.appendChild(textSpan("item-tags", annotation.tags.join(", ")));
+
+  const attachmentCount = annotation.attachments?.length || 0;
+  // The count goes first so a long locator is what gets truncated.
+  const meta = [
+    attachmentCount ? `${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"}` : null,
+    annotation.element ? elementSummary(annotation) : null
+  ].filter(Boolean).join(" · ");
+  item.append(top, textSpan("item-comment", annotation.comment || "No comment"));
+  if (meta) item.appendChild(textSpan("item-meta", meta));
+  return item;
 }
 
 export function renderList() {
   const root = $("list");
   root.replaceChildren();
+  renderOpenCount(state.openAnnotations.length);
   if (!state.openAnnotations.length) {
-    setListMessage("No unresolved annotations.");
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    const title = document.createElement("strong");
+    title.textContent = "No open annotations on this page.";
+    empty.append(title, "Saved annotations stay here until they are resolved.");
+    root.appendChild(empty);
     return;
   }
-
-  for (const annotation of state.openAnnotations) {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "item";
-    item.addEventListener("click", () => openDetail(annotation));
-
-    const top = document.createElement("span");
-    top.className = "topline";
-    const badges = document.createElement("span");
-    badges.className = "badges";
-    const severity = document.createElement("span");
-    severity.className = "tag";
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    dot.setAttribute("aria-hidden", "true");
-    severity.append(dot, document.createTextNode(severityLabel(normalizedSeverity(annotation.severity))));
-    badges.appendChild(severity);
-
-    if (annotation.tags?.length) {
-      const tags = document.createElement("span");
-      tags.className = "tag";
-      tags.textContent = annotation.tags.slice(0, 2).join(", ");
-      badges.appendChild(tags);
-    }
-
-    const id = document.createElement("span");
-    id.className = "id mono";
-    id.textContent = annotation.id ? `[#${annotation.id}]` : "";
-    top.append(badges, id);
-    const comment = document.createElement("span");
-    comment.textContent = annotation.comment || "No comment";
-    item.append(top, comment);
-    root.appendChild(item);
-  }
+  root.append(...state.openAnnotations.map(listItem));
 }
 
 export async function refreshList() {
+  // Navigation can start a newer refresh while an older route is still loading.
+  const requestId = ++listRequestId;
   const list = $("list");
   list.setAttribute("aria-busy", "true");
-  setListMessage("Loading…");
+  // Keep the current cards in place while refreshing so the list does not jump.
+  if (!state.openAnnotations.length) setListMessage("Loading…");
   try {
-    state.openAnnotations = await getAnnotationsForRoute();
+    const annotations = await getAnnotationsForRoute();
+    if (requestId !== listRequestId) return;
+    state.openAnnotations = annotations;
     renderList();
   } catch (error) {
+    if (requestId !== listRequestId) return;
     state.openAnnotations = [];
+    renderOpenCount(null);
     setListMessage(`Could not load annotations: ${error?.message || error}`, "inline-error");
   } finally {
-    list.removeAttribute("aria-busy");
+    if (requestId === listRequestId) list.removeAttribute("aria-busy");
   }
 }
 
@@ -78,8 +94,7 @@ export function openDetail(annotation) {
   clearSavedAttachmentPreviews();
   state.selectedAnnotation = annotation;
   $("detailId").textContent = annotation.id || "—";
-  const primary = annotation.element?.primary;
-  $("detailLocator").textContent = primary ? `${primary.type}:${primary.value || ""}` : "—";
+  $("detailLocator").textContent = annotation.element ? elementSummary(annotation) : "—";
   $("detailComment").value = annotation.comment || "";
   $("detailHint").textContent = "";
   syncDetailControls();
@@ -124,7 +139,7 @@ function syncDetailControls() {
   const comment = $("detailComment").value.trim();
   $("saveDetail").disabled = pending || !detailCommentIsDirty() || !comment;
   $("closeDetail").disabled = pending;
-  $("markResolved").disabled = pending;
+  $("markResolved").disabled = pending || resolving;
 }
 
 export function syncDetailCommentState() {
@@ -217,7 +232,9 @@ export async function copySelectedAnnotation() {
 }
 
 export async function resolveSelectedAnnotation() {
-  if (!state.selectedAnnotation) return;
+  if (!state.selectedAnnotation || resolving) return;
+  resolving = true;
+  syncDetailControls();
   $("detailHint").textContent = "Resolving…";
   try {
     if (detailCommentIsDirty()) await saveSelectedAnnotationComment();
@@ -226,5 +243,8 @@ export async function resolveSelectedAnnotation() {
     closeDetail();
   } catch (error) {
     $("detailHint").textContent = `Could not resolve: ${error?.message || error}`;
+  } finally {
+    resolving = false;
+    syncDetailControls();
   }
 }

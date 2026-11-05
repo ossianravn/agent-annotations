@@ -4,6 +4,8 @@ import { click, evaluate, waitForEvaluation } from "./journey_support.mjs";
 export const FINAL_SAVED_COMMENT = "Edited browser journey annotation";
 
 export async function verifySavedAnnotationDetail(chrome, panelSession) {
+  await click(chrome, panelSession, "#tabOpen");
+  await waitForEvaluation(chrome, panelSession, "!document.querySelector('#panelOpen').hidden", "open tab");
   await click(chrome, panelSession, ".item");
   await waitForEvaluation(
     chrome,
@@ -147,7 +149,7 @@ export async function verifySavedAnnotationDetail(chrome, panelSession) {
   await waitForEvaluation(
     chrome,
     panelSession,
-    "document.querySelector('#list').textContent.includes('No unresolved')",
+    "document.querySelector('#list').textContent.includes('No open annotations')",
     "annotation resolve"
   );
 }

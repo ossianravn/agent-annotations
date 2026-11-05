@@ -37,5 +37,5 @@ async function main() {
 
 main().catch((error) => {
   console.error("Agent Annotations side panel failed to start:", error);
-  announceAction(`The side panel could not start: ${error?.message || error}`);
+  announceAction(`The side panel could not start: ${error?.message || error}`, "error");
 });

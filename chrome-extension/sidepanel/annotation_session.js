@@ -12,6 +12,7 @@ import { flushDraft, scheduleDraftSave } from "./drafts.js";
 function syncToggle(enabled) {
   state.annotateEnabled = enabled;
   $("annotateToggle").checked = enabled;
+  renderSelectedElement();
 }
 
 export async function setAnnotateMode(enabled, options = {}) {
@@ -59,11 +60,21 @@ export async function clearSelectedElement() {
   });
 }
 
-export async function refreshSelectedElementGeometry() {
+export async function refreshSelectedElementGeometry(options = {}) {
+  const { allowStored = false } = options;
   const tabId = state.activeTab?.id;
   if (!tabId) throw new Error("No annotation tab is available.");
-  const response = await chrome.tabs.sendMessage(tabId, { type: "ANNOTATE_GET_SELECTION" });
-  if (!response?.ok || !response.payload) throw new Error("Select a visible element first.");
+  let response = null;
+  try {
+    response = await chrome.tabs.sendMessage(tabId, { type: "ANNOTATE_GET_SELECTION" });
+  } catch {
+    // The page reloaded or was never annotated, so it holds no live selection.
+  }
+  if (!response?.ok || !response.payload) {
+    // A selection restored from a draft still carries its locators, just not fresh geometry.
+    if (allowStored && state.selectedElement) return state.selectedElement;
+    throw new Error("Turn on annotate mode and select the element again.");
+  }
   state.selectedElement = response.payload;
   renderSelectedElement();
   updateSendEnabled();
