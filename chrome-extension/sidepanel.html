@@ -119,7 +119,10 @@
       <div id="panelOpen" class="tab-panel list-panel" role="tabpanel" aria-labelledby="tabOpen" hidden>
         <div class="section-head">
           <h2 class="section-title">Open on this page</h2>
-          <button id="refreshList" class="text-btn" type="button">Refresh</button>
+          <div class="section-actions">
+            <button id="openBoard" class="text-btn" type="button">Open board</button>
+            <button id="refreshList" class="text-btn" type="button">Refresh</button>
+          </div>
         </div>
         <div id="list" class="list"></div>
       </div>
@@ -167,6 +170,13 @@
             <h3 class="field-label">From the agent</h3>
             <ol class="activity" id="detailActivity"></ol>
           </section>
+          <div class="field" id="detailReplyField" hidden>
+            <label class="field-label" for="detailReply">Reply</label>
+            <textarea class="field-input" id="detailReply" rows="3"></textarea>
+            <div>
+              <button id="sendReply" class="btn btn-primary" type="button">Reply and send back</button>
+            </div>
+          </div>
           <p class="help" id="detailHint" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
         <div class="dialog-footer">

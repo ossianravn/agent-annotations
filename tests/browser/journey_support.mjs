@@ -83,8 +83,23 @@ export async function click(chrome, sessionId, selector) {
   }, sessionId);
 }
 
+// A page that is still loading throws on missing elements; that is "not yet",
+// not a failure. The last error is reported if the wait times out.
 export async function waitForEvaluation(chrome, sessionId, expression, description) {
-  await waitFor(() => evaluate(chrome, sessionId, expression), description);
+  let lastError = null;
+  try {
+    await waitFor(async () => {
+      try {
+        return await evaluate(chrome, sessionId, expression);
+      } catch (error) {
+        lastError = error;
+        return false;
+      }
+    }, description);
+  } catch (error) {
+    if (lastError) error.message += ` Last error: ${lastError.message}`;
+    throw error;
+  }
 }
 
 export async function stopProcess(process) {

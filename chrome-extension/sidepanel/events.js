@@ -228,6 +228,10 @@ export function bindUI() {
   bindComposer();
   bindDialogs();
   bindTabs();
+  $("openBoard").addEventListener("click", () => {
+    const query = state.project ? `?project=${encodeURIComponent(state.project.id)}` : "";
+    chrome.tabs.create({ url: chrome.runtime.getURL(`board.html${query}`) });
+  });
   $("refreshList").addEventListener("click", async () => {
     await refreshActiveTabInfo();
     await refreshPage();

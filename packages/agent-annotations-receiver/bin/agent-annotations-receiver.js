@@ -52,7 +52,7 @@ function loadOrCreateToken() {
 function listAnnotations(cards, url) {
   const status = (url.searchParams.get("status") || "open").trim().toLowerCase();
   const routeKey = (url.searchParams.get("routeKey") || "").trim();
-  const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit"), 10) || 50));
+  const limit = Math.max(1, Math.min(1000, Number.parseInt(url.searchParams.get("limit"), 10) || 50));
   let annotations;
   if (["open", "active"].includes(status)) annotations = cards.activeCards();
   else if (status === "all") annotations = cards.listCards();
@@ -111,6 +111,64 @@ function pathId(segment) {
   }
 }
 
+// Pushes "cards changed" to open boards and panels. Polling the card files
+// (only while someone listens) also catches edits by agents and by hand,
+// and behaves the same on every OS, unlike file watchers.
+function createEventHub(cardsDir) {
+  const clients = new Set();
+  let timer = null;
+  let signature = "";
+  let ticks = 0;
+
+  function currentSignature() {
+    if (!fs.existsSync(cardsDir)) return "";
+    return fs.readdirSync(cardsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => {
+        try {
+          const stats = fs.statSync(path.join(cardsDir, entry.name, "card.md"));
+          return `${entry.name}:${stats.mtimeMs}:${stats.size}`;
+        } catch {
+          return entry.name;
+        }
+      })
+      .sort()
+      .join("|");
+  }
+
+  function poll() {
+    ticks += 1;
+    const next = currentSignature();
+    const message = next !== signature ? "event: cards\ndata: {}\n\n" : ticks % 20 === 0 ? ": ping\n\n" : null;
+    signature = next;
+    if (message) for (const client of clients) client.write(message);
+  }
+
+  return {
+    add(response) {
+      response.writeHead(200, {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-store",
+        Connection: "keep-alive"
+      });
+      response.write("retry: 2000\n: connected\n\n");
+      clients.add(response);
+      if (!timer) {
+        signature = currentSignature();
+        timer = setInterval(poll, 1000);
+      }
+      response.on("close", () => {
+        clients.delete(response);
+        if (!clients.size) {
+          clearInterval(timer);
+          timer = null;
+        }
+      });
+    }
+  };
+}
+
 function sendAttachment(response, attachment) {
   const file = fs.readFileSync(attachment.absolutePath);
   response.writeHead(200, {
@@ -125,7 +183,7 @@ function sendAttachment(response, attachment) {
 }
 
 async function handleRequest(request, response, context) {
-  const { token, project, cards, assetStore } = context;
+  const { token, project, cards, assetStore, events } = context;
   if (request.method === "OPTIONS") {
     response.writeHead(204, corsHeaders);
     response.end();
@@ -138,7 +196,8 @@ async function handleRequest(request, response, context) {
       projectId: project.projectId,
       name: project.name,
       repoRoot,
-      receiverBaseUrl: baseUrl
+      receiverBaseUrl: baseUrl,
+      wipLimitPerAgent: project.wipLimitPerAgent
     });
     return;
   }
@@ -146,6 +205,10 @@ async function handleRequest(request, response, context) {
   // any web page could read or change the cards.
   requireAuth(request, token);
 
+  if (request.method === "GET" && url.pathname === "/events") {
+    events.add(response);
+    return;
+  }
   if (request.method === "GET" && url.pathname === "/annotations") {
     sendJson(response, 200, { ok: true, annotations: listAnnotations(cards, url) });
     return;
@@ -167,8 +230,8 @@ async function handleRequest(request, response, context) {
   }
   const annotationMatch = /^\/annotations\/([^/]+)$/.exec(url.pathname);
   if (request.method === "PATCH" && annotationMatch) {
-    const { comment, status, waitingReason, archived } = await readJson(request);
-    const annotation = cards.updateCard(pathId(annotationMatch[1]), { comment, status, waitingReason, archived });
+    const { comment, title, rank, status, waitingReason, archived } = await readJson(request);
+    const annotation = cards.updateCard(pathId(annotationMatch[1]), { comment, title, rank, status, waitingReason, archived });
     sendJson(response, 200, { ok: true, annotation });
     return;
   }
@@ -178,6 +241,17 @@ async function handleRequest(request, response, context) {
     if (!status) throw new RequestError(400, "Missing 'status'.");
     const annotation = cards.updateCard(pathId(statusMatch[1]), { status, waitingReason });
     sendJson(response, 200, { ok: true, id: annotation.id, status: annotation.status, annotation });
+    return;
+  }
+  const addAttachmentsMatch = /^\/annotations\/([^/]+)\/attachments$/.exec(url.pathname);
+  if (request.method === "POST" && addAttachmentsMatch) {
+    const body = await readJson(request, MAX_CREATE_BODY_BYTES);
+    const assets = Array.isArray(body.assets) ? body.assets : [];
+    if (!assets.length) throw new RequestError(400, "No attachments were sent.");
+    const annotation = cards.addAttachments(pathId(addAttachmentsMatch[1]), (relativeDir, startIndex) => (
+      assetStore.storeUploads(relativeDir, assets, startIndex)
+    ));
+    sendJson(response, 200, { ok: true, annotation });
     return;
   }
   const commentMatch = /^\/annotations\/([^/]+)\/comments$/.exec(url.pathname);
@@ -225,8 +299,9 @@ function main() {
   const cards = createCardStore(repoRoot, { wipLimit: project.wipLimitPerAgent });
   const assetStore = createAssetStore(repoRoot, cards.cardsDir);
   const migrated = cards.migrateInbox();
+  const events = createEventHub(cards.cardsDir);
   const server = http.createServer((request, response) => {
-    handleRequest(request, response, { token, project, cards, assetStore }).catch((error) => {
+    handleRequest(request, response, { token, project, cards, assetStore, events }).catch((error) => {
       if (!response.headersSent) sendJson(response, error.status || 500, { ok: false, error: error.message });
       else response.destroy(error);
     });

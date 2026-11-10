@@ -20,6 +20,7 @@ import { verifyDesktopWidthToggle, verifyZoomRestoredOnPanelClose } from "./desk
 import { verifyProjectRouting } from "./projects_journey.mjs";
 import { verifyOfflineCapture } from "./offline_journey.mjs";
 import { verifyAgentHandoff } from "./cards_journey.mjs";
+import { verifyBoard } from "./board_journey.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const extensionPath = path.join(root, "chrome-extension");
@@ -208,6 +209,7 @@ try {
     stopReceiver, startReceiver, receiverRepo, repoName: path.basename(receiverRepo)
   });
   await verifyAgentHandoff(chrome, panelSession, receiverRepo, offlineCard);
+  await verifyBoard(chrome, { extensionId, panelSession, receiverRepo, card: offlineCard, fixtureUrl });
 
   const cleanupKey = await evaluate(chrome, panelSession, `(async () => {
     const shared = await import(chrome.runtime.getURL('sidepanel/shared.js'));

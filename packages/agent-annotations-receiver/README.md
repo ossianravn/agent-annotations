@@ -43,6 +43,13 @@ stored card with `"duplicate": true` instead of a 409.
 accepts `comment`, `status` (with `waitingReason` for `waiting`) and `archived`.
 `POST /annotations/:id/comments` with `{ "author", "text" }` adds a note.
 
+`PATCH` also takes `title` and a numeric `rank` (lower ranks are picked
+first). `POST /annotations/:id/attachments` with `{ "assets": [...] }` adds
+images to an existing card. `GET /events` is a Server-Sent Events stream that
+sends `event: cards` whenever any card changes, including edits made by agents
+or by hand; the receiver only checks the card files while someone is
+listening. `/health` also reports `wipLimitPerAgent`.
+
 Cards are written through a lock file shared with the agent CLI
 (`agent-annotations-cards.cjs`), so claims stay atomic whether or not the
 receiver is running. On start, the receiver moves a 0.4 `inbox.jsonl` and

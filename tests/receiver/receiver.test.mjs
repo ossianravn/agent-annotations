@@ -242,6 +242,62 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
   }
 });
 
+test("open boards hear about card changes and can edit cards", async () => {
+  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-events-test-"));
+  const port = await freePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const receiver = spawn(process.execPath, [
+    receiverScript, "--repo", temporaryRoot, "--host", "127.0.0.1", "--port", String(port)
+  ], { cwd: root, env: { ...process.env, ANNOTATION_TOKEN: token }, stdio: "ignore" });
+  const headers = { "Content-Type": "application/json", "X-Annotation-Token": token };
+  const abort = new AbortController();
+  try {
+    await waitForReceiver(baseUrl);
+    assert.equal((await (await fetch(`${baseUrl}/health`)).json()).wipLimitPerAgent, 2);
+    assert.equal((await fetch(`${baseUrl}/events`)).status, 401);
+
+    const created = await (await fetch(`${baseUrl}/annotations`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ annotation: { comment: "An idea without a page", status: "draft" } })
+    })).json();
+    assert.equal(created.status, "draft");
+
+    const stream = await fetch(`${baseUrl}/events`, { headers, signal: abort.signal });
+    const reader = stream.body.getReader();
+    await reader.read();
+    // A change written by someone else (here: an agent editing the file) must reach the board.
+    const cardFile = path.join(temporaryRoot, ".agent-annotations/cards", created.id, "card.md");
+    await writeFile(cardFile, (await readFile(cardFile, "utf8")).replace("An idea without a page", "Edited on disk"));
+    const event = await Promise.race([
+      reader.read().then(({ value }) => new TextDecoder().decode(value)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("no change event within 4s")), 4000))
+    ]);
+    assert.match(event, /event: cards/);
+
+    const edited = await (await fetch(`${baseUrl}/annotations/${created.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ title: "Better title", rank: 12.5 })
+    })).json();
+    assert.equal(edited.annotation.title, "Better title");
+    assert.equal(edited.annotation.rank, 12.5);
+    const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+    const withImage = await (await fetch(`${baseUrl}/annotations/${created.id}/attachments`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ assets: [{ name: "pasted.png", mime: "image/png", dataBase64: imageBytes.toString("base64") }] })
+    })).json();
+    assert.equal(withImage.annotation.attachments[0].path, `.agent-annotations/cards/${created.id}/assets/0_pasted.png`);
+    const image = await fetch(`${baseUrl}/annotations/${created.id}/attachments/0`, { headers });
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), imageBytes);
+  } finally {
+    abort.abort();
+    await stopProcess(receiver);
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test("receiver keeps one project identity across restarts", async () => {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-project-test-"));
   const startHealth = async () => {

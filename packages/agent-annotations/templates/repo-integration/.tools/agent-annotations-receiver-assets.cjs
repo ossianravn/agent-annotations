@@ -48,12 +48,12 @@ function createAssetStore(repoRoot, cardsDir) {
   }
 
   // Stored paths use "/" so a repo written on one OS resolves on another.
-  function storeUploads(relativeDir, assets) {
+  function storeUploads(relativeDir, assets, startIndex = 0) {
     const attachments = [];
     for (const [index, asset] of assets.entries()) {
       const payload = uploadPayload(asset, index);
       if (!payload) continue;
-      const name = `${index}_${assetName(asset?.name, payload.mime, `asset_${index}`)}`;
+      const name = `${startIndex + index}_${assetName(asset?.name, payload.mime, `asset_${index}`)}`;
       const relativePath = path.posix.join(relativeDir, name);
       const absolutePath = path.join(repoRoot, relativePath);
       fs.mkdirSync(path.dirname(absolutePath), { recursive: true });

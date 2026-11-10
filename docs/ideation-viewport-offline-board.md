@@ -331,7 +331,7 @@ Answer: Yes, sometimes, and probably more like in the future the way things are 
 
 ## Suggested order of work
 
-Progress: step 1 shipped in v0.4.3, step 2 in v0.4.4, step 3 in v0.4.5, step 4 in v0.5.0 (card front matter is JSON rather than YAML, so the receiver stays dependency-free).
+Progress: step 1 shipped in v0.4.3, step 2 in v0.4.4, step 3 in v0.4.5, step 4 in v0.5.0 (card front matter is JSON rather than YAML, so the receiver stays dependency-free). Step 5 shipped in v0.6.0: live updates poll the card files while someone listens, instead of using file watchers, so they behave the same on every OS.
 
 1. **Layout metadata, plus the zoom-compensation switch.** Small, and it
    answers the readability question with real use.

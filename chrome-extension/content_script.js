@@ -163,6 +163,10 @@
       clearSelection();
       sendResponse({ ok: true });
     }
+    if (message.type === "ANNOTATE_HIGHLIGHT") {
+      if (enabled) disable();
+      sendResponse({ ok: true, found: api.highlightElement(message.element) });
+    }
     if (message.type === "ANNOTATE_GET_SELECTION") {
       sendResponse({ ok: true, payload: selectionPayload() });
     }

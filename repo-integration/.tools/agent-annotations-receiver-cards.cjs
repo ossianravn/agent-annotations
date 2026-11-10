@@ -49,6 +49,17 @@ function titleFrom(comment) {
   return title.length > 80 ? `${title.slice(0, 79)}…` : title;
 }
 
+// Ranks are numbers so a card dropped between two others gets the midpoint.
+// Cards from 0.5.0 have ISO-date ranks; those read as their timestamp.
+function rankValue(card) {
+  if (Number.isFinite(card.rank)) return card.rank;
+  return Date.parse(card.rank || card.createdAt) || 0;
+}
+
+function compareRank(left, right) {
+  return rankValue(left) - rankValue(right);
+}
+
 function serializeCard(card) {
   const { comment = "", ...fields } = card;
   return `---\n${JSON.stringify(fields, null, 2)}\n---\n\n${String(comment).trim()}\n`;
@@ -140,10 +151,6 @@ function createCardStore(repoRoot, options = {}) {
     return cards;
   }
 
-  function byRank(left, right) {
-    return String(left.rank || left.createdAt).localeCompare(String(right.rank || right.createdAt));
-  }
-
   function createCard(fields, storeAssets) {
     return withLock(() => {
       const supplied = String(fields.id || "").trim();
@@ -166,7 +173,7 @@ function createCardStore(repoRoot, options = {}) {
         status: ["draft", "ready"].includes(status) ? status : "ready",
         severity: normalizedType(fields.severity),
         tags: Array.isArray(fields.tags) ? fields.tags : [],
-        rank: createdAt,
+        rank: Date.parse(createdAt) || Date.now(),
         createdAt,
         updatedAt: now(),
         activity: [],
@@ -206,6 +213,15 @@ function createCardStore(repoRoot, options = {}) {
         if (comment.length > 100000) throw cardError(400, "Comment is too long.");
         card = { ...card, comment, updatedAt: now() };
       }
+      if (patch.title != null) {
+        const title = String(patch.title).trim();
+        if (!title || title.length > 200) throw cardError(400, "Titles need 1 to 200 characters.");
+        card = { ...card, title, updatedAt: now() };
+      }
+      if (patch.rank != null) {
+        if (!Number.isFinite(patch.rank)) throw cardError(400, "Rank must be a number.");
+        card = { ...card, rank: patch.rank, updatedAt: now() };
+      }
       if (patch.status != null) card = applyStatus(card, normalizedStatus(patch.status), patch);
       if (patch.archived != null) card = { ...card, archivedAt: patch.archived ? now() : undefined, updatedAt: now() };
       return writeCard(card);
@@ -231,8 +247,17 @@ function createCardStore(repoRoot, options = {}) {
   // Pull, don't push: the highest-ranked Ready card goes to the asking agent.
   function claimNext(agent) {
     return withLock(() => {
-      const next = listCards().filter((card) => card.status === "ready" && !card.archivedAt).sort(byRank)[0];
+      const next = listCards().filter((card) => card.status === "ready" && !card.archivedAt).sort(compareRank)[0];
       return next ? claimLocked(next, agent) : null;
+    });
+  }
+
+  function addAttachments(id, storeAssets) {
+    return withLock(() => {
+      const card = requireCard(id);
+      const existing = card.attachments || [];
+      const added = storeAssets(path.posix.join(".agent-annotations", "cards", id, "assets"), existing.length);
+      return writeCard({ ...card, attachments: [...existing, ...added], updatedAt: now() });
     });
   }
 
@@ -309,7 +334,7 @@ function createCardStore(repoRoot, options = {}) {
             status,
             severity: normalizedType(record.severity),
             tags: Array.isArray(record.tags) ? record.tags : [],
-            rank: createdAt,
+            rank: Date.parse(createdAt) || Date.now(),
             createdAt,
             updatedAt: now(),
             activity: [],
@@ -334,6 +359,7 @@ function createCardStore(repoRoot, options = {}) {
     cardsDir,
     activeCards,
     addActivity,
+    addAttachments,
     claimCard,
     claimNext,
     createCard,
@@ -350,6 +376,7 @@ function createCardStore(repoRoot, options = {}) {
 
 module.exports = {
   ACTIVE_STATUSES,
+  compareRank,
   STATUSES,
   createCardStore,
   normalizedStatus,

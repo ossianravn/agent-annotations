@@ -195,6 +195,14 @@ export async function updateAnnotationStatus(annotation, status, waitingReason) 
   return data.annotation;
 }
 
+export async function addAnnotationComment(annotation, text) {
+  const data = await requestJson(`${annotationPath(annotation)}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ author: "you", text })
+  });
+  return data.annotation;
+}
+
 export async function fetchAnnotationAttachment(annotation, index) {
   const response = await request(`${annotationPath(annotation)}/attachments/${index}`);
   if (!response.ok) {

@@ -10,11 +10,29 @@ import { setConnectionStatus } from "./feedback.js";
 import { renderProjectPrompt } from "./project_prompt.js";
 import { checkToken, probeReceiver } from "./receiver.js";
 import { requestSync } from "./outbox.js";
+import { connectEvents } from "../shared/live_events.mjs";
 import { $, state } from "./shared.js";
 
 // "Not now" lasts for this panel session only.
 const dismissedOrigins = new Set();
 let routeRequestId = 0;
+let live = null;
+let liveKey = null;
+let onCardsChanged = () => {};
+
+export function onLiveCardsChanged(callback) {
+  onCardsChanged = callback;
+}
+
+// Follow the page's repo, so agent claims and hand-backs show up by themselves.
+function followCards(target, reachable) {
+  const key = reachable && target ? `${target.receiverUrl}|${target.token}` : null;
+  if (key === liveKey) return;
+  live?.close();
+  live = null;
+  liveKey = key;
+  if (key) live = connectEvents(target, () => onCardsChanged());
+}
 
 export async function loadProjectsIntoState() {
   state.projects = await loadProjects();
@@ -104,6 +122,7 @@ export async function refreshRoute() {
   $("projectName").textContent = route.project?.name || "No project";
   setConnectionStatus(route.status);
   renderProjectPrompt(route.prompt, { addPage, dismiss, saveToken });
+  followCards(state.target, route.status === "ok");
   // A repo that just became reachable may have annotations waiting for it.
   if (route.status === "ok") requestSync();
 }

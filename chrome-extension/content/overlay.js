@@ -4,7 +4,7 @@
 
   const HOST_ID = "__agent_annotations_overlay";
 
-  function createOverlay() {
+  function createOverlay(options = {}) {
     document.getElementById(HOST_ID)?.remove();
     const host = document.createElement("agent-annotations-overlay");
     host.id = HOST_ID;
@@ -66,7 +66,7 @@
     selected.setAttribute("aria-hidden", "true");
     const hud = document.createElement("div");
     hud.className = "hud";
-    hud.textContent = "Annotate: point or Tab to highlight · click or Enter to select · Esc to exit";
+    hud.textContent = options.hudText || "Annotate: point or Tab to highlight · click or Enter to select · Esc to exit";
     shadow.append(style, hover, selected, hud);
     document.documentElement.appendChild(host);
 

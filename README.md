@@ -95,6 +95,19 @@ The Open tab lists the page's unfinished cards with Waiting on you first. Open a
 card to read the agent's notes and question, or change its status. If an agent
 stops while holding a card, move the card back to Ready to release it.
 
+### The board
+
+**Open board** (in the panel's Open tab) shows every card of the project in a
+full tab, one column per status. Drag cards between columns, or up and down to
+change the order agents pick Ready cards in. Search and filter by type, and use
+**New card** for ideas that don't belong to a page. Open a card to edit it,
+answer an agent's question (**Reply and send back**), add images by pasting or
+with **Add image**, archive finished cards, or **Show on page** to open the
+page with the element outlined.
+
+The board and the panel update by themselves while agents work: the receiver
+tells them when cards change.
+
 ### Saving while the repo is offline
 
 Saving never needs a running receiver. Every annotation is stored in the

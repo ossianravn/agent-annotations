@@ -2,6 +2,7 @@ export const CONTENT_SCRIPT_FILES = [
   "content/selector.js",
   "content/locator.js",
   "content/overlay.js",
+  "content/highlight.js",
   "content_script.js"
 ];
 

@@ -5,7 +5,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { STATUSES, createCardStore } = require("./agent-annotations-receiver-cards.cjs");
+const { STATUSES, compareRank, createCardStore } = require("./agent-annotations-receiver-cards.cjs");
 
 const USAGE = `Usage: node .tools/agent-annotations-cards.cjs <command> [options]
 
@@ -112,7 +112,7 @@ function run(argv, overrides = {}) {
     const status = String(options.status || "active").toLowerCase();
     let list = status === "active" ? cards.activeCards() : cards.listCards();
     if (!["active", "all"].includes(status)) list = list.filter((card) => card.status === status && !card.archivedAt);
-    print(list.sort((left, right) => String(left.rank).localeCompare(String(right.rank))), options, repoRoot);
+    print(list.sort(compareRank), options, repoRoot);
   } else if (command === "show") {
     print(cards.requireCard(requireArg(id, "Which card? Pass its ID.")), options, repoRoot);
   } else if (command === "next") {

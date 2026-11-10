@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Board · Agent Annotations</title>
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/controls.css">
+    <link rel="stylesheet" href="styles/dialogs.css">
+    <link rel="stylesheet" href="styles/list.css">
+    <link rel="stylesheet" href="styles/board.css">
+  </head>
+  <body class="board-app">
+    <header class="board-header">
+      <h1 class="board-title">Board</h1>
+      <label class="board-project">
+        <span class="sr-only">Project</span>
+        <select id="projectSelect" class="field-input field-project"></select>
+      </label>
+      <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite">Offline</span>
+      <span class="spacer"></span>
+      <button id="newCard" class="btn btn-primary" type="button">New card</button>
+    </header>
+
+    <div class="board-toolbar">
+      <label class="board-search">
+        <span class="sr-only">Search cards</span>
+        <input id="search" class="field-input" type="search" placeholder="Search cards" autocomplete="off">
+      </label>
+      <fieldset class="choice-fieldset">
+        <legend class="sr-only">Type</legend>
+        <div class="segmented">
+          <label class="segment"><input class="sr-only" type="radio" name="typeFilter" value="all" checked>All</label>
+          <label class="segment" data-sev="bug"><input class="sr-only" type="radio" name="typeFilter" value="bug"><span class="sev-dot" aria-hidden="true"></span>Bug</label>
+          <label class="segment" data-sev="feature"><input class="sr-only" type="radio" name="typeFilter" value="feature"><span class="sev-dot" aria-hidden="true"></span>Feature</label>
+          <label class="segment" data-sev="info"><input class="sr-only" type="radio" name="typeFilter" value="info"><span class="sev-dot" aria-hidden="true"></span>Request</label>
+        </div>
+      </fieldset>
+      <label class="mode-switch">
+        <span class="mode-label">Show archived</span>
+        <span class="switch">
+          <input type="checkbox" id="showArchived" role="switch">
+          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+        </span>
+      </label>
+    </div>
+
+    <p id="boardMessage" class="board-message" hidden></p>
+
+    <main class="board" id="board" aria-label="Cards by status">
+      <section class="column" data-status="draft" aria-labelledby="columnDraft">
+        <div class="column-head"><h2 id="columnDraft">Draft</h2><span class="count" data-count>0</span></div>
+        <ol class="column-cards"></ol>
+      </section>
+      <section class="column" data-status="ready" aria-labelledby="columnReady">
+        <div class="column-head"><h2 id="columnReady">Ready for agent</h2><span class="count" data-count>0</span></div>
+        <ol class="column-cards"></ol>
+      </section>
+      <section class="column" data-status="in_progress" aria-labelledby="columnProgress">
+        <div class="column-head"><h2 id="columnProgress">In progress</h2><span class="count" data-count>0</span></div>
+        <p class="help column-limit" id="wipLimit"></p>
+        <ol class="column-cards"></ol>
+      </section>
+      <section class="column" data-status="waiting" aria-labelledby="columnWaiting">
+        <div class="column-head"><h2 id="columnWaiting">Waiting on you</h2><span class="count" data-count>0</span></div>
+        <ol class="column-cards"></ol>
+      </section>
+      <section class="column" data-status="done" aria-labelledby="columnDone">
+        <div class="column-head"><h2 id="columnDone">Done</h2><span class="count" data-count>0</span></div>
+        <ol class="column-cards"></ol>
+      </section>
+    </main>
+
+    <p id="boardStatus" class="board-status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+    <dialog id="cardDialog" class="dialog dialog-card" aria-labelledby="cardTitleLabel">
+      <div class="dialog-header">
+        <label class="sr-only" id="cardTitleLabel" for="cardTitle">Title</label>
+        <input id="cardTitle" class="title-input" type="text" maxlength="200" autocomplete="off">
+        <button id="closeCard" class="icon-btn ghost" type="button" aria-label="Close card">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div class="card-facts">
+          <div class="field">
+            <label class="field-label" for="cardStatus">Status</label>
+            <select id="cardStatus" class="field-input field-status">
+              <option value="draft">Draft</option>
+              <option value="ready">Ready for agent</option>
+              <option value="in_progress">In progress</option>
+              <option value="waiting:question">Waiting on you: question</option>
+              <option value="waiting:review">Waiting on you: review</option>
+              <option value="done">Done</option>
+              <option value="wont_do">Won't do</option>
+            </select>
+          </div>
+          <div class="field">
+            <span class="field-label">Type</span>
+            <span id="cardType" class="type-label"></span>
+          </div>
+        </div>
+        <p class="help" id="cardClaim"></p>
+        <div class="field" id="cardPageField">
+          <span class="field-label">Page</span>
+          <div class="page-row">
+            <a id="cardPage" class="page-link" target="_blank" rel="noreferrer"></a>
+            <button id="showOnPage" class="btn" type="button">Show on page</button>
+          </div>
+          <p class="help" id="cardElement"></p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="cardComment">Comment</label>
+          <textarea id="cardComment" class="field-input detail-comment" rows="6"></textarea>
+        </div>
+        <div class="field">
+          <span class="field-label">Attachments</span>
+          <div class="detail-attachments" id="cardAttachments"></div>
+          <div class="page-row">
+            <label class="btn file-btn">Add image<input id="cardImageInput" class="sr-only" type="file" accept="image/*" multiple></label>
+            <span class="help">or paste one here</span>
+          </div>
+        </div>
+        <section class="field" id="cardActivitySection" hidden>
+          <h3 class="field-label">From the agent</h3>
+          <ol class="activity" id="cardActivity"></ol>
+        </section>
+        <div class="field" id="cardReplyField" hidden>
+          <label class="field-label" for="cardReply">Reply</label>
+          <textarea id="cardReply" class="field-input" rows="3"></textarea>
+          <div><button id="cardSendReply" class="btn btn-primary" type="button">Reply and send back</button></div>
+        </div>
+        <p class="help" id="cardHint" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
+      <div class="dialog-footer">
+        <button id="archiveCard" class="btn" type="button" hidden>Archive</button>
+        <span class="spacer"></span>
+        <button id="saveCard" class="btn" type="button" disabled>Save</button>
+        <button id="doneCard" class="btn btn-primary" type="button">Mark done</button>
+      </div>
+    </dialog>
+
+    <dialog id="newCardDialog" class="dialog" aria-labelledby="newCardTitle">
+      <div class="dialog-header">
+        <h2 class="dialog-title" id="newCardTitle">New card</h2>
+        <button id="closeNewCard" class="icon-btn ghost" type="button" aria-label="Close new card">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div class="field">
+          <label class="field-label" for="newComment">What should be done?</label>
+          <textarea id="newComment" class="field-input detail-comment" rows="6" aria-describedby="newCommentHint"></textarea>
+          <p class="help" id="newCommentHint">Paste an image to attach it.</p>
+        </div>
+        <fieldset class="choice-fieldset">
+          <legend class="field-label">Type</legend>
+          <div class="segmented">
+            <label class="segment" data-sev="bug"><input class="sr-only" type="radio" name="newType" value="bug"><span class="sev-dot" aria-hidden="true"></span>Bug</label>
+            <label class="segment" data-sev="feature"><input class="sr-only" type="radio" name="newType" value="feature"><span class="sev-dot" aria-hidden="true"></span>Feature</label>
+            <label class="segment" data-sev="info"><input class="sr-only" type="radio" name="newType" value="info" checked><span class="sev-dot" aria-hidden="true"></span>Request</label>
+          </div>
+        </fieldset>
+        <div class="detail-attachments" id="newAttachments"></div>
+        <p class="help" id="newCardHint" role="status" aria-live="polite"></p>
+      </div>
+      <div class="dialog-footer">
+        <button id="newCardDraft" class="btn" type="button">Save draft</button>
+        <span class="spacer"></span>
+        <button id="newCardSend" class="btn btn-primary" type="button">Send to agent</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="board/main.js"></script>
+  </body>
+</html>

@@ -1,33 +1,12 @@
-import { updateAnnotationStatus } from "./receiver.js";
+import { ACTIVITY_LABELS, STATUS_LABELS, relativeTime, statusLabel } from "../shared/card_labels.mjs";
+import { addAnnotationComment, updateAnnotationStatus } from "./receiver.js";
 import { $, state } from "./shared.js";
 
-const STATUS_LABELS = {
-  draft: "Draft",
-  ready: "Ready for agent",
-  in_progress: "In progress",
-  done: "Done",
-  wont_do: "Won't do"
-};
-const ACTIVITY_LABELS = { review: "Ready for review", question: "Question", comment: "Note" };
-
-export function statusLabel(card) {
-  if (card.status === "waiting") return `Waiting on you: ${card.waitingReason === "question" ? "question" : "review"}`;
-  if (card.status === "in_progress" && card.claimedBy) return `In progress · ${card.claimedBy}`;
-  return STATUS_LABELS[card.status] || STATUS_LABELS.ready;
-}
+export { statusLabel };
 
 function selectValue(card) {
   if (card.status === "waiting") return `waiting:${card.waitingReason || "review"}`;
   return STATUS_LABELS[card.status] ? card.status : "ready";
-}
-
-function relativeTime(iso) {
-  const minutes = Math.round((Date.now() - Date.parse(iso)) / 60000);
-  if (!Number.isFinite(minutes)) return "at an unknown time";
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  if (minutes < 48 * 60) return `${Math.round(minutes / 60)} h ago`;
-  return new Date(iso).toLocaleDateString();
 }
 
 function activityItem(entry) {
@@ -60,26 +39,54 @@ export function renderCardMeta(card) {
     list.appendChild(item);
   }
   $("detailActivitySection").hidden = !activity.length && !links.length;
+  // Answering is what a card waiting on you asks for.
+  $("detailReplyField").hidden = card.status !== "waiting";
+  $("detailReply").placeholder = card.waitingReason === "question" ? "Your answer" : "What should change? (optional)";
 }
 
-export function bindStatusSelect({ refreshList, closeDetail }) {
+async function applyUpdate(updated, { refreshList, closeDetail }) {
+  state.selectedAnnotation = updated;
+  renderCardMeta(updated);
+  $("detailHint").textContent = `Status: ${statusLabel(updated)}.`;
+  await refreshList();
+  if (["done", "wont_do"].includes(updated.status)) closeDetail();
+}
+
+export function bindStatusSelect(actions) {
   $("detailStatus").addEventListener("change", async () => {
     const card = state.selectedAnnotation;
     if (!card) return;
     const [status, waitingReason] = $("detailStatus").value.split(":");
     $("detailStatus").disabled = true;
     try {
-      const updated = await updateAnnotationStatus(card, status, waitingReason);
-      state.selectedAnnotation = updated;
-      renderCardMeta(updated);
-      $("detailHint").textContent = `Status: ${statusLabel(updated)}.`;
-      await refreshList();
-      if (["done", "wont_do"].includes(updated.status)) closeDetail();
+      await applyUpdate(await updateAnnotationStatus(card, status, waitingReason), actions);
     } catch (error) {
       renderCardMeta(card);
       $("detailHint").textContent = `Could not change the status: ${error?.message || error}`;
     } finally {
       $("detailStatus").disabled = false;
+    }
+  });
+
+  $("sendReply").addEventListener("click", async () => {
+    const card = state.selectedAnnotation;
+    const text = $("detailReply").value.trim();
+    if (!card) return;
+    if (card.waitingReason === "question" && !text) {
+      $("detailHint").textContent = "Write your answer first.";
+      $("detailReply").focus();
+      return;
+    }
+    $("sendReply").disabled = true;
+    try {
+      if (text) await addAnnotationComment(card, text);
+      await applyUpdate(await updateAnnotationStatus(card, "ready"), actions);
+      $("detailReply").value = "";
+      $("detailHint").textContent = "Sent back to the agent.";
+    } catch (error) {
+      $("detailHint").textContent = `Could not send the reply: ${error?.message || error}`;
+    } finally {
+      $("sendReply").disabled = false;
     }
   });
 }

@@ -7,7 +7,7 @@ import { bindUI, refreshPage } from "./events.js";
 import { refreshList } from "./annotations.js";
 import { announceAction } from "./feedback.js";
 import { loadSettings } from "./receiver.js";
-import { loadProjectsIntoState, onProjectsChanged } from "./projects.js";
+import { loadProjectsIntoState, onLiveCardsChanged, onProjectsChanged } from "./projects.js";
 import { renderProjectList } from "./project_settings.js";
 import { getActiveTab, refreshActiveTabInfo, renderSelectedElement, state } from "./shared.js";
 import { renderAttachments } from "./attachments.js";
@@ -42,6 +42,7 @@ async function main() {
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === "OUTBOX_CHANGED") refreshList();
   });
+  onLiveCardsChanged(() => refreshList());
   bindDesktopWidth();
   bindDraftLifecycle();
   await Promise.all([refreshPage(), syncDesktopWidth()]);

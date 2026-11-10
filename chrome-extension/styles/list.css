@@ -110,3 +110,8 @@
   color: var(--warn);
   font-weight: 600;
 }
+
+.section-actions {
+  display: flex;
+  gap: var(--space-3);
+}
