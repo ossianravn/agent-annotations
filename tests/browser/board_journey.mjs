@@ -33,8 +33,9 @@ export async function verifyBoard(chrome, { extensionId, panelSession, receiverR
     list.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer, clientY: y }));
   })()`);
   await waitForEvaluation(chrome, boardSession, inColumn("ready", title), "dragged back to Ready");
+  // The board moves the card before the receiver has written it, so wait for the file.
+  await waitFor(async () => (await readCards(receiverRepo)).find((candidate) => candidate.id === card.id)?.status === "ready", "drag saved to the card");
   const dragged = (await readCards(receiverRepo)).find((candidate) => candidate.id === card.id);
-  assert.equal(dragged.status, "ready");
   assert.equal(dragged.claimedBy, undefined, "moving out of In progress releases the claim");
 
   // A card can start on the board, without a page.

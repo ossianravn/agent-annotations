@@ -90,8 +90,11 @@ export function renderProjectPrompt(prompt, handlers) {
       await handler({ ...current, token: token ? token.input.value.trim() : current.token });
     } catch (failure) {
       error.textContent = failure?.message || String(failure);
-      buttons.forEach((candidate) => { candidate.disabled = false; });
       button.focus();
+    } finally {
+      // A refresh that asks the same question keeps these buttons, so they
+      // must work again whether the action failed or succeeded.
+      buttons.forEach((candidate) => { candidate.disabled = false; });
     }
   };
   const addButton = (label, className, handler) => {

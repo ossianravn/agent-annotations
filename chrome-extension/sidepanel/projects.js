@@ -90,7 +90,9 @@ async function resolveRoute() {
     status: credentials.status,
     // Until the page is added, saves still reach the repo that is running.
     target: ready ? { ...running, token: credentials.token } : null,
-    prompt: offer || !ready
+    // "Not now" hides the offer even without a token; saves then wait in the
+    // browser until the page is added.
+    prompt: offer
       ? { kind: "add", running, origin, needsToken: !ready, token: credentials.token, known: Boolean(knownProject(running.id)) }
       : null
   };

@@ -8,7 +8,7 @@
     "pack:receiver": "cd packages/agent-annotations-receiver && pnpm pack",
     "package:extension": "python scripts/package-extension-zip.py",
     "test:extension": "node --test tests/extension/*.test.mjs",
-    "test:extension:browser": "node tests/browser/extension-journey.mjs && node tests/browser/extension-reload-journey.mjs",
+    "test:extension:browser": "node tests/browser/extension-journey.mjs && node tests/browser/extension-reload-journey.mjs && node tests/browser/first-run-journey.mjs",
     "test:receiver": "node --test tests/receiver/*.test.mjs",
     "sync:receiver": "node scripts/sync-receiver-copies.mjs",
     "screenshots:readme": "node scripts/readme-screenshots/capture.mjs"
