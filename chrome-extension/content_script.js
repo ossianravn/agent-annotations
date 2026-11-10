@@ -19,6 +19,22 @@
     return element instanceof Element && element.id !== api.overlayHostId;
   }
 
+  // After the extension is reloaded or updated, this copy keeps running in the
+  // page but can no longer reach the extension. It has to step aside on the
+  // first event it sees: otherwise it swallows every click before the new copy
+  // gets it, and the page stops responding to clicks altogether.
+  function steppedAside() {
+    let alive = false;
+    try {
+      alive = Boolean(chrome.runtime?.id);
+    } catch {
+      // Touching an invalidated context can throw; that also means stale.
+    }
+    if (alive) return false;
+    disable();
+    return true;
+  }
+
   function elementAtPoint(clientX, clientY) {
     const element = document.elementFromPoint(clientX, clientY);
     return isSelectable(element) ? element : null;
@@ -50,6 +66,7 @@
   }
 
   function scheduleLayoutRefresh() {
+    if (steppedAside()) return;
     if (layoutFrame) return;
     layoutFrame = requestAnimationFrame(() => {
       layoutFrame = 0;
@@ -60,6 +77,7 @@
   }
 
   function onPointerMove(event) {
+    if (steppedAside()) return;
     if (pointerFrame || event.pointerType === "touch") return;
     pointerFrame = requestAnimationFrame(() => {
       pointerFrame = 0;
@@ -70,6 +88,7 @@
   }
 
   function onClick(event) {
+    if (steppedAside()) return;
     const element = elementAtPoint(event.clientX, event.clientY);
     if (!element) return;
     event.preventDefault();
@@ -82,18 +101,21 @@
   const PRESS_EVENTS = ["pointerdown", "pointerup", "mousedown", "mouseup", "dblclick", "auxclick"];
 
   function onPress(event) {
+    if (steppedAside()) return;
     if (!isSelectable(event.target)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   }
 
   function onFocusIn(event) {
+    if (steppedAside()) return;
     if (!isSelectable(event.target)) return;
     hoveredElement = event.target;
     overlay.moveHover(hoveredElement);
   }
 
   function onKeyDown(event) {
+    if (steppedAside()) return;
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopImmediatePropagation();
