@@ -13,7 +13,7 @@ export function selectTab(tabId, options = {}) {
     $(panel).hidden = !selected;
   }
   // Saving belongs to the composer; on the list it would read as acting on a card.
-  $("send").hidden = tabId !== "tabNew";
+  $("composerActions").hidden = tabId !== "tabNew";
   if (options.focus) $(tabId).focus();
 }
 

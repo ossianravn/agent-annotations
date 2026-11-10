@@ -7,9 +7,11 @@ let renderId = 0;
 
 function filename(annotation, path, index) {
   const base = String(path || "attachment").split(/[\\/]/).pop() || "attachment";
-  // Stored files carry an "<id>_<index>_" prefix to stay unique on disk.
-  const prefix = `${annotation.id}_${index}_`;
-  return base.startsWith(prefix) ? base.slice(prefix.length) : base;
+  // Stored files carry an "<index>_" prefix (and, before 0.5, the card ID too).
+  for (const prefix of [`${annotation.id}_${index}_`, `${index}_`]) {
+    if (base.startsWith(prefix)) return base.slice(prefix.length);
+  }
+  return base;
 }
 
 function releaseObjectUrls() {

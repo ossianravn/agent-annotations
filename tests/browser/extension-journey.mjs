@@ -7,6 +7,7 @@ import path from "node:path";
 import { ChromePipe } from "./chrome_pipe.mjs";
 import {
   click,
+  readCards,
   evaluate,
   findChromePath,
   freePort,
@@ -18,6 +19,7 @@ import { FINAL_SAVED_COMMENT, verifySavedAnnotationDetail } from "./saved_annota
 import { verifyDesktopWidthToggle, verifyZoomRestoredOnPanelClose } from "./desktop_width_journey.mjs";
 import { verifyProjectRouting } from "./projects_journey.mjs";
 import { verifyOfflineCapture } from "./offline_journey.mjs";
+import { verifyAgentHandoff } from "./cards_journey.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const extensionPath = path.join(root, "chrome-extension");
@@ -190,21 +192,22 @@ try {
   await click(chrome, panelSession, "#attachElementShot");
   await waitForEvaluation(chrome, panelSession, "document.querySelectorAll('.attachment').length === 2", "element crop");
   await click(chrome, panelSession, "#send");
-  await waitForEvaluation(chrome, panelSession, "document.querySelector('#actionStatus').textContent === 'Annotation saved.'", "annotation save");
+  await waitForEvaluation(chrome, panelSession, "document.querySelector('#actionStatus').textContent === 'Sent to the agent.'", "annotation save");
   await waitForEvaluation(chrome, panelSession, "Boolean(document.querySelector('.item'))", "annotation list item");
   await verifySavedAnnotationDetail(chrome, panelSession);
 
-  const resolved = await readFile(path.join(receiverRepo, ".agent-annotations/inbox-resolved.jsonl"), "utf8");
-  assert.match(resolved, new RegExp(FINAL_SAVED_COMMENT));
-  assert.doesNotMatch(resolved, /"comment":"Browser journey annotation"/);
-  assert.match(resolved, /"severity":"bug"/);
-  assert.match(resolved, /"attachments":\[/);
-  assert.match(resolved, /"layout":\{"viewportWidth":\d+/);
+  const done = (await readCards(receiverRepo)).find((card) => card.comment === FINAL_SAVED_COMMENT);
+  assert.ok(done, "the edited comment is the card's body");
+  assert.equal(done.status, "done");
+  assert.equal(done.severity, "bug");
+  assert.equal(done.attachments.length, 2);
+  assert.equal(typeof done.layout.viewportWidth, "number");
 
   await verifyDesktopWidthToggle(chrome, panelSession, pageSession, startup.lockedTabId);
-  await verifyOfflineCapture(chrome, panelSession, pageSession, {
+  const offlineCard = await verifyOfflineCapture(chrome, panelSession, pageSession, {
     stopReceiver, startReceiver, receiverRepo, repoName: path.basename(receiverRepo)
   });
+  await verifyAgentHandoff(chrome, panelSession, receiverRepo, offlineCard);
 
   const cleanupKey = await evaluate(chrome, panelSession, `(async () => {
     const shared = await import(chrome.runtime.getURL('sidepanel/shared.js'));

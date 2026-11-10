@@ -1,9 +1,9 @@
 # AGENTS.md (example snippet)
 
 ## Agent Annotations
-- UI annotations may exist under `.agent-annotations/`.
-- Before making UI changes, you MAY check open annotations if the user asks, or if it is clearly relevant.
-- After implementing a fix, mark related annotations `resolved`.
+- UI cards from the human live in `.agent-annotations/cards/` (see the check-agent-annotations skill).
+- When asked to check annotations or work the board, claim cards with `node .tools/agent-annotations-cards.cjs next --agent <name>`.
+- Work only on `ready` cards, never on drafts. When finished, hand the card back for review with `handback <id> --review "..."`; if blocked, hand it back with `--question`. Never mark cards done yourself.
 
 ## Browser validation (only if user requests it)
 If the user explicitly asks to validate in a browser and a browser automation tool is available (browser skill, MCP tool, Playwright, etc.):

@@ -200,3 +200,22 @@ button.detail-attachment:hover {
 .asset-caption {
   overflow-wrap: anywhere;
 }
+
+.field-status {
+  inline-size: auto;
+  max-inline-size: 100%;
+  justify-self: start;
+}
+
+.activity {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

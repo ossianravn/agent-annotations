@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { click, evaluate, waitForEvaluation } from "./journey_support.mjs";
+import { click, evaluate, readCards, waitForEvaluation } from "./journey_support.mjs";
 
 const OFFLINE_COMMENT = "Captured while the repo was offline";
 
@@ -55,6 +53,8 @@ export async function verifyOfflineCapture(chrome, panelSession, pageSession, { 
   );
   const waiting = await evaluate(chrome, panelSession, "import(chrome.runtime.getURL('shared/outbox_store.mjs')).then((store) => store.listOutboxItems()).then((items) => items.length)");
   assert.equal(waiting, 0, "delivered annotations leave the outbox");
-  const inbox = await readFile(path.join(receiverRepo, ".agent-annotations/inbox.jsonl"), "utf8");
-  assert.equal(inbox.split(OFFLINE_COMMENT).length - 1, 1, "delivered exactly once");
+  const delivered = (await readCards(receiverRepo)).filter((card) => card.comment === OFFLINE_COMMENT);
+  assert.equal(delivered.length, 1, "delivered exactly once");
+  assert.equal(delivered[0].status, "ready", "Send to agent makes the card ready");
+  return delivered[0];
 }

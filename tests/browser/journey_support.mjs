@@ -95,3 +95,17 @@ export async function stopProcess(process) {
     setTimeout(resolve, 1000);
   });
 }
+
+// Cards on disk, parsed the way agents read them: JSON front matter + body.
+export async function readCards(repoRoot) {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const cardsDir = path.join(repoRoot, ".agent-annotations", "cards");
+  const cards = [];
+  for (const entry of await readdir(cardsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const text = (await readFile(path.join(cardsDir, entry.name, "card.md"), "utf8")).replace(/\r\n/g, "\n");
+    const [, fields, body] = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text);
+    cards.push({ ...JSON.parse(fields), comment: body.trim() });
+  }
+  return cards;
+}

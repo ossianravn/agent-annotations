@@ -9,6 +9,7 @@
     "package:extension": "python scripts/package-extension-zip.py",
     "test:extension": "node --test tests/extension/*.test.mjs",
     "test:extension:browser": "node tests/browser/extension-journey.mjs",
-    "test:receiver": "node --test tests/receiver/*.test.mjs"
+    "test:receiver": "node --test tests/receiver/*.test.mjs",
+    "sync:receiver": "node scripts/sync-receiver-copies.mjs"
   }
 }

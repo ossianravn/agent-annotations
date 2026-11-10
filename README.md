@@ -1,14 +1,14 @@
 # Agent Annotations
 
-A Chrome side-panel extension for annotating UI elements on pages (often `localhost`), plus a lightweight local receiver that writes an agent-friendly inbox into your repo.
+A Chrome side-panel extension for annotating UI elements on pages (often `localhost`), plus a lightweight local receiver that turns them into cards in your repo, for coding agents to pick up and hand back.
 
 ## How it works (visual)
 
-1) Annotate an element in the extension and click **Save Annotation**:
+1) Annotate an element in the extension and click **Send to agent** (or **Save draft**):
 
 <img src="docs/images/example-usage-1.png" width="900" alt="Agent Annotations: creating an annotation in the extension" />
 
-2) The receiver writes an agent-friendly inbox into your repo (`.agent-annotations/`):
+2) The receiver writes it as a card into your repo (`.agent-annotations/cards/`):
 
 <img src="docs/images/example-usage-2.png" width="900" alt="Agent Annotations: receiver writing annotations into the repo" />
 
@@ -78,6 +78,22 @@ If a different repo's receiver answers for a page (for example, another app
 now runs on that port), the panel shows **Other repo running** and pauses
 saving until you move the page or start the right receiver, so annotations
 never land in the wrong repo. Manage projects and their pages under Settings.
+
+### Cards and statuses
+
+Every annotation is a card with a status, so it's clear who has to act next:
+
+| Status | Meaning |
+| --- | --- |
+| Draft | Saved with **Save draft**. Agents never pick it up. |
+| Ready for agent | Saved with **Send to agent**, or moved there by you. |
+| In progress | An agent claimed it. Several agents can work at once; each card goes to one, and each agent holds at most two. |
+| Waiting on you | The agent handed it back: finished (**review**) or blocked (**question**). |
+| Done / Won't do | You closed it. **Mark done** after checking the result. |
+
+The Open tab lists the page's unfinished cards with Waiting on you first. Open a
+card to read the agent's notes and question, or change its status. If an agent
+stops while holding a card, move the card back to Ready to release it.
 
 ### Saving while the repo is offline
 
@@ -219,13 +235,13 @@ Copilot note:
 
 ## 4) Where data goes
 
-Open (active):
-- `.agent-annotations/inbox.jsonl`
-- `.agent-annotations/assets/open/`
+Each card is a folder: `.agent-annotations/cards/<id>/card.md` (JSON front
+matter, then your comment as Markdown) and `cards/<id>/assets/` (screenshots).
+Finished cards stay in place with status `done`; nothing moves.
 
-Resolved (archive):
-- `.agent-annotations/inbox-resolved.jsonl`
-- `.agent-annotations/assets/resolved/`
+Upgrading from 0.4: the receiver moves `inbox.jsonl` and
+`inbox-resolved.jsonl` into card folders on its first start and keeps the old
+files as `*.migrated`.
 
 ---
 
@@ -239,7 +255,9 @@ Examples:
 - **Claude Code**: `/check-agent-annotations`
 
 ### Any agent (manual)
-Agents can simply read `.agent-annotations/inbox.jsonl` and act on it.
+Point the agent at the cards tool: `node .tools/agent-annotations-cards.cjs help`.
+It claims the next Ready card (`next --agent <name>`), adds notes
+(`comment`), and hands cards back for review or with a question (`handback`).
 
 Browser validation should only happen if the **user explicitly asks**, and only using tools available in that agent environment (browser skill, MCP tool, Playwright, etc.).
 

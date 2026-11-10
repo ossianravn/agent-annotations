@@ -1,62 +1,79 @@
 ---
 name: check-agent-annotations
-description: Read .agent-annotations (open inbox + assets) and turn UI annotations into an actionable plan. Optional browser validation only when requested.
+description: Work through the UI cards a human left for agents in .agent-annotations/cards (page, element locators, screenshots, comment). Use when asked to check annotations, work the board or queue, or pick up the next UI task.
 ---
 
 # check-agent-annotations
 
-## What this skill does
-- Reads the open annotation inbox: `.agent-annotations/inbox.jsonl`
-- Optionally reads the resolved archive: `.agent-annotations/inbox-resolved.jsonl`
-- Summarizes annotations (route, locator hints, comment, attachments)
-- Produces an actionable plan (what to search, where to edit, how to validate)
+The human captures UI problems and ideas in the browser. Each one is a card:
+`.agent-annotations/cards/<id>/card.md` holds JSON front matter followed by the
+human's comment as Markdown, and `cards/<id>/assets/` holds its screenshots.
 
-## Where annotations live
-Open (active):
-- `.agent-annotations/inbox.jsonl`
-- `.agent-annotations/assets/open/`
-
-Resolved (archive):
-- `.agent-annotations/inbox-resolved.jsonl`
-- `.agent-annotations/assets/resolved/`
-
-If files don’t exist, treat as “no annotations yet”.
-
-## How to use locators
-Given `element.primary`:
-- `testid`: search repo for the value (e.g. `data-testid="..."`)
-- `id`: search for `id="..."`
-- otherwise: use `textHint`, `role`, and alternate locators to narrow down components/files
-
-## Browser validation (only if user asks)
-Only do browser validation if the user explicitly requests it.
-If a browser automation tool is available (browser skill, MCP tool, Playwright, etc.), you may:
-- open the annotated URL
-- locate the element using `data-testid` / role / text hints
-- capture before/after screenshots
-Otherwise, provide manual validation steps.
-
-## Marking items resolved
-Preferred method (if the receiver is running):
-
-1) Read config (optional) and token:
-- `.agent-annotations/config.json` contains `receiverBaseUrl` (defaults to `http://localhost:8787`)
-- `.agent-annotations/token.txt` contains the token
-
-2) POST status update:
+Change cards only through the cards tool. It takes a lock, so two agents can
+never claim the same card:
 
 ```bash
-BASE_URL="$(node -p "try{require('./.agent-annotations/config.json').receiverBaseUrl}catch(e){'http://localhost:8787'}")"
-TOKEN="$(cat .agent-annotations/token.txt)"
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -H "X-Annotation-Token: $TOKEN" \
-  -d '{"status":"resolved"}' \
-  "$BASE_URL/annotations/<ID>/status"
+node .tools/agent-annotations-cards.cjs <command> --agent <your-name>
 ```
 
-Fallback (if receiver is not running):
-- move the record from `inbox.jsonl` to `inbox-resolved.jsonl` and set `status` to `"resolved"`.
+Use one stable `--agent` name for the whole session (for example `codex` or
+`claude`). If `.tools/agent-annotations-cards.cjs` is missing, run
+`pnpm dlx agent-annotations cards <command>` instead.
+
+## Statuses
+
+| Status | Meaning | Moved by |
+| --- | --- | --- |
+| `draft` | The human is still writing it. Never work on drafts. | human |
+| `ready` | Ready for an agent. Agents pull from the top. | human |
+| `in_progress` | Claimed by one agent (`claimedBy`). | you, with `next` or `claim` |
+| `waiting` | Handed back: `waitingReason` is `review` (you finished) or `question` (you need an answer). | you, with `handback` |
+| `done`, `wont_do` | Closed by the human. Don't reopen them. | human |
+
+## The loop
+
+1. Claim the top card: `next --agent <name>`. It prints the card. "No cards are
+   ready for an agent" means stop. You can hold 2 cards at once
+   (`wipLimitPerAgent` in `.agent-annotations/config.json`).
+2. Read all of it: the comment, the page URL, the element locators, `layout`
+   (the viewport width the comment is about, which decides the breakpoint),
+   earlier `activity`, and the screenshots listed as attachments.
+3. Find the code (see Locators below), make the change, and check it.
+4. Leave notes while you work: `comment <id> "Found the race in useCartTotal"`.
+   Notes also show the human you are still on the card.
+5. Hand it back, then take the next card:
+   - Finished: `handback <id> --review "What changed and how to check it" --link <commit or PR>`.
+     Cover every acceptance point in the comment.
+   - Blocked: `handback <id> --question "One concrete question"`. Don't guess
+     at product decisions.
+
+Never mark cards `done`: the human checks the result in the browser first.
+
+## Locators
+
+Given `element.primary`:
+- `testid`: search the repo for the value (for example `data-testid="..."`).
+- `id`: search for `id="..."`.
+- otherwise: use `textHint`, `role` and the alternate locators to narrow down
+  the component, and the page URL to find the route.
+
+## Browser validation (only if the user asks)
+
+Only validate in a browser if the user explicitly asks. If a browser tool is
+available (browser skill, MCP tool, Playwright), open the card's URL at its
+`layout.viewportWidth`, find the element by `data-testid`, role or text, and
+capture before and after screenshots. Otherwise, give manual steps.
+
+## Other commands
+
+- `list [--status ready|active|all|<status>]`: list cards (default: not finished).
+- `show <id>`: print one card with its notes and attachment paths.
+- `claim <id>`: claim a specific Ready card.
+- `move <id> <status>`: only when the human asks you to.
+- `archive <id>`: hide a finished card.
+
+Add `--json` to any command for machine-readable output.
 
 ## Reference
-See `references/ANNOTATIONS_SCHEMA.md`.
+
+See `references/ANNOTATIONS_SCHEMA.md` for every card field.

@@ -1,9 +1,11 @@
-# Optional: ignore annotation assets (screenshots)
-.agent-annotations/assets/
+# Always ignore the receiver token
+.agent-annotations/token.txt
 
-# Optional: ignore receiver token (if you prefer per-dev local tokens)
-# .agent-annotations/token.txt
+# Optional: ignore card screenshots
+.agent-annotations/cards/*/assets/
 
-# Optional: ignore open/resolved inbox files (if you don't want notes in git)
-# .agent-annotations/inbox.jsonl
-# .agent-annotations/inbox-resolved.jsonl
+# Optional: ignore the cards themselves (if you don't want them in git)
+# .agent-annotations/cards/
+
+# The cards lock file is temporary
+.agent-annotations/cards/.lock

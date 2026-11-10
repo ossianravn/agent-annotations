@@ -186,6 +186,15 @@ export async function updateAnnotationComment(annotation, comment) {
   return data.annotation;
 }
 
+export async function updateAnnotationStatus(annotation, status, waitingReason) {
+  const data = await requestJson(annotationPath(annotation), {
+    method: "PATCH",
+    body: JSON.stringify({ status, waitingReason })
+  });
+  if (!data.annotation) throw new Error("Receiver returned no card.");
+  return data.annotation;
+}
+
 export async function fetchAnnotationAttachment(annotation, index) {
   const response = await request(`${annotationPath(annotation)}/attachments/${index}`);
   if (!response.ok) {

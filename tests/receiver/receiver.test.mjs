@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { access, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -152,30 +152,9 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
     assert.equal(rawAssetResponse.status, 200);
     assert.deepEqual(Buffer.from(await rawAssetResponse.arrayBuffer()), imageBytes);
 
-    const multiUploadResponse = await fetch(`${baseUrl}/annotations`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Annotation-Token": token
-      },
-      body: JSON.stringify({
-        annotation: { routeKey: "atomic-resolve", comment: "Atomic resolve" },
-        assets: [
-          { name: "first.png", mime: "image/png", dataUrl: `data:image/png;base64,${imageBytes.toString("base64")}` },
-          { name: "second.png", mime: "image/png", dataUrl: `data:image/png;base64,${imageBytes.toString("base64")}` }
-        ]
-      })
-    });
-    const multiUpload = await multiUploadResponse.json();
-    const firstSource = path.join(temporaryRoot, multiUpload.attachments[0].path);
-    const secondSource = path.join(temporaryRoot, multiUpload.attachments[1].path);
-    const firstDestination = path.join(
-      temporaryRoot,
-      ".agent-annotations/assets/resolved",
-      path.basename(firstSource)
-    );
-    await unlink(secondSource);
-    const failedResolve = await fetch(`${baseUrl}/annotations/${multiUpload.id}/status`, {
+    // Finishing a card changes its status in place; its files never move.
+    const cardFile = path.join(temporaryRoot, ".agent-annotations/cards", created.id, "card.md");
+    const resolveResponse = await fetch(`${baseUrl}/annotations/${created.id}/status`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -183,20 +162,23 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
       },
       body: JSON.stringify({ status: "resolved" })
     });
-    assert.equal(failedResolve.status, 500);
-    await access(firstSource);
-    await assert.rejects(access(firstDestination));
+    assert.equal(resolveResponse.status, 200);
+    assert.equal((await resolveResponse.json()).status, "done");
+    assert.match(await readFile(cardFile, "utf8"), /"status": "done"/);
+    const doneAsset = await fetch(`${baseUrl}/annotations/${created.id}/attachments/0`, {
+      headers: { "X-Annotation-Token": token }
+    });
+    assert.equal(doneAsset.status, 200);
 
-    const inboxPath = path.join(temporaryRoot, ".agent-annotations/inbox.jsonl");
-    const records = (await readFile(inboxPath, "utf8")).trim().split("\n").map(JSON.parse);
-    const stored = records.find((record) => record.id === created.id);
-    stored.attachments[0].path = "outside-assets.png";
+    // A hand-edited card must not point the receiver at files outside card assets.
+    const cardText = await readFile(cardFile, "utf8");
     await writeFile(path.join(temporaryRoot, "outside-assets.png"), imageBytes);
-    await writeFile(inboxPath, `${records.map(JSON.stringify).join("\n")}\n`, "utf8");
+    await writeFile(cardFile, cardText.replace(created.attachments[0].path, "outside-assets.png"), "utf8");
     const escapedAsset = await fetch(`${baseUrl}/annotations/${created.id}/attachments/0`, {
       headers: { "X-Annotation-Token": token }
     });
     assert.equal(escapedAsset.status, 400);
+    await writeFile(cardFile, cardText, "utf8");
 
     const unauthorizedList = await fetch(`${baseUrl}/annotations?status=open`);
     assert.equal(unauthorizedList.status, 401);
@@ -204,7 +186,11 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
       headers: { "X-Annotation-Token": token }
     });
     const list = await listResponse.json();
-    assert.equal(list.annotations.find((annotation) => annotation.id === created.id).comment, "Updated comment");
+    assert.equal(list.annotations.some((annotation) => annotation.id === created.id), false, "done cards leave the open list");
+    const doneList = await (await fetch(`${baseUrl}/annotations?status=done`, {
+      headers: { "X-Annotation-Token": token }
+    })).json();
+    assert.equal(doneList.annotations.find((annotation) => annotation.id === created.id).comment, "Updated comment");
 
     const createWithId = (id) => fetch(`${baseUrl}/annotations`, {
       method: "POST",
@@ -232,9 +218,8 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
     const repeated = await retry("First send");
     assert.equal(repeated.status, 200);
     assert.equal((await repeated.json()).duplicate, true);
-    const inbox = (await readFile(path.join(temporaryRoot, ".agent-annotations/inbox.jsonl"), "utf8"))
-      .trim().split("\n").map(JSON.parse);
-    assert.equal(inbox.filter((record) => record.id === "ann_retry").length, 1);
+    const retried = await readFile(path.join(temporaryRoot, ".agent-annotations/cards/ann_retry/card.md"), "utf8");
+    assert.match(retried, /First send/);
     const conflicting = await fetch(`${baseUrl}/annotations`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Annotation-Token": token },
@@ -285,19 +270,6 @@ test("receiver keeps one project identity across restarts", async () => {
 });
 
 test("standalone and scaffold receiver runtimes remain identical", async () => {
-  const runtimeFiles = [
-    "agent-annotations-receiver.js",
-    "agent-annotations-receiver-assets.cjs"
-  ];
-  for (const filename of runtimeFiles) {
-    const canonical = await readFile(path.join(root, "packages/agent-annotations-receiver/bin", filename));
-    const installedFilename = filename.replace(/\.js$/, ".cjs");
-    const copies = [
-      `repo-integration/.tools/${installedFilename}`,
-      `packages/agent-annotations/templates/repo-integration/.tools/${installedFilename}`
-    ];
-    for (const relativePath of copies) {
-      assert.deepEqual(await readFile(path.join(root, relativePath)), canonical);
-    }
-  }
+  const check = spawnSync(process.execPath, [path.join(root, "scripts/sync-receiver-copies.mjs"), "--check"], { encoding: "utf8" });
+  assert.equal(check.status, 0, check.stderr || check.stdout);
 });

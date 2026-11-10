@@ -109,7 +109,9 @@ export function announceAction(message, tone = "info") {
 export function updateSendEnabled() {
   const hasElement = Boolean(state.selectedElement);
   const hasComment = Boolean($("comment").value.trim());
-  $("send").disabled = state.isSending || !hasElement || !hasComment;
+  const disabled = state.isSending || !hasElement || !hasComment;
+  $("send").disabled = disabled;
+  $("saveDraft").disabled = disabled;
 }
 
 export function setListMessage(message, className = "empty") {

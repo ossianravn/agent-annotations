@@ -30,8 +30,8 @@ function destinationForSave() {
   return null;
 }
 
-export async function queueAnnotation() {
-  const annotation = { ...buildAnnotationPayload(), id: newAnnotationId() };
+export async function queueAnnotation(status = "ready") {
+  const annotation = { ...buildAnnotationPayload(), status, id: newAnnotationId() };
   const assets = await Promise.all(state.attachments.map(async ({ name, mime, dataUrl }) => ({
     name,
     mime,
@@ -78,7 +78,7 @@ function waitingFor(item) {
 }
 
 export function outcomeMessage(outcome, item) {
-  if (outcome?.state === "synced") return "Annotation saved.";
+  if (outcome?.state === "synced") return item.annotation.status === "draft" ? "Draft saved." : "Sent to the agent.";
   if (outcome?.state === "failed") return `Saved in the browser, but sending failed: ${outcome.message}`;
   if (outcome?.reason === "unassigned") return "Saved in the browser. Add this page to a project to send it.";
   const name = outcome?.projectName || waitingFor(item);

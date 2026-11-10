@@ -132,6 +132,19 @@
           </button>
         </div>
         <div class="dialog-body">
+          <div class="field">
+            <label class="field-label" for="detailStatus">Status</label>
+            <select id="detailStatus" class="field-input field-status" aria-describedby="detailClaim">
+              <option value="draft">Draft</option>
+              <option value="ready">Ready for agent</option>
+              <option value="in_progress">In progress</option>
+              <option value="waiting:question">Waiting on you: question</option>
+              <option value="waiting:review">Waiting on you: review</option>
+              <option value="done">Done</option>
+              <option value="wont_do">Won't do</option>
+            </select>
+            <p class="help" id="detailClaim"></p>
+          </div>
           <dl class="meta-list">
             <div class="kv">
               <dt class="k">Element</dt>
@@ -150,13 +163,17 @@
             <span class="field-label">Attachments</span>
             <div class="detail-attachments" id="detailAttachments"></div>
           </div>
+          <section class="field" id="detailActivitySection" hidden>
+            <h3 class="field-label">From the agent</h3>
+            <ol class="activity" id="detailActivity"></ol>
+          </section>
           <p class="help" id="detailHint" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
         <div class="dialog-footer">
           <button id="copyPrompt" class="btn" type="button">Copy prompt</button>
           <span class="spacer"></span>
           <button id="saveDetail" class="btn" type="button" disabled>Save</button>
-          <button id="markResolved" class="btn btn-primary" type="button">Resolve</button>
+          <button id="markResolved" class="btn btn-primary" type="button">Mark done</button>
         </div>
       </dialog>
 
@@ -213,9 +230,14 @@
     <footer class="footer">
       <section id="projectPrompt" class="prompt" aria-label="Project for this page" hidden></section>
       <p id="actionStatus" class="action-status" role="status" aria-live="polite" aria-atomic="true"></p>
-      <button id="send" class="send-btn" type="button">
-        <span class="send-text">Save annotation</span>
-      </button>
+      <div class="composer-actions" id="composerActions">
+        <button id="saveDraft" class="btn draft-btn" type="button" title="Keep it on the board without sending it to an agent">
+          <span class="btn-text">Save draft</span>
+        </button>
+        <button id="send" class="send-btn" type="button">
+          <span class="send-text">Send to agent</span>
+        </button>
+      </div>
     </footer>
 
     <script type="module" src="sidepanel/main.js"></script>

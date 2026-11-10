@@ -7,6 +7,7 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 - `chrome-extension/`: Chrome side-panel extension source (`manifest.json`, `sidepanel.*`, `service_worker.js`, `content_script.js`).
 - `packages/agent-annotations/`: Node.js CLI that scaffolds/installs repo integration (`agent-annotations`).
 - `packages/agent-annotations-receiver/`: Node.js CLI receiver that writes `.agent-annotations/` into a target repo (`agent-annotations-receiver`).
+  Its `bin/` files are the canonical receiver, card store and agent cards CLI; `pnpm sync:receiver` copies them into `repo-integration/.tools/` and the scaffold template (tests fail if the copies drift).
 - `repo-integration/`: Template files copied into target repos (e.g. `.tools/` receiver launcher and `skills/`).
 - `scripts/`: Release/packaging utilities (Python).
 - `docs/`: Documentation assets (screenshots).
@@ -42,4 +43,4 @@ Prereqs: Node.js `>=18`, `pnpm` (see `package.json` `packageManager`), and Pytho
 
 ## Security & Repo Hygiene
 
-- Do not commit `.agent-annotations/` (contains tokens/inbox); it is intentionally gitignored.
+- Do not commit `.agent-annotations/` (contains the token and the cards); it is intentionally gitignored.

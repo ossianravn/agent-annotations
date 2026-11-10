@@ -34,25 +34,30 @@ function uploadPayload(asset, index) {
   return { mime: asset.mime || "application/octet-stream", base64 };
 }
 
-function createAssetStore(repoRoot, assetDirs) {
-  // Stored paths use "/" so an inbox written on one OS resolves on another.
+// Attachments live in each card's assets/ folder. Reads are limited to those
+// folders so a hand-edited card cannot point the receiver at other files.
+function createAssetStore(repoRoot, cardsDir) {
+  const cardsRoot = `${path.resolve(cardsDir)}${path.sep}`;
+
   function managedPath(relativePath) {
     const absolutePath = path.resolve(repoRoot, String(relativePath || "").replace(/\\/g, "/"));
-    const allowed = Object.values(assetDirs).some((root) => (
-      absolutePath.startsWith(`${path.resolve(root)}${path.sep}`)
-    ));
-    if (!allowed) throw requestError(400, "Attachment path is outside the annotation asset directory.");
+    const insideCardAssets = absolutePath.startsWith(cardsRoot) &&
+      path.relative(cardsRoot, absolutePath).split(path.sep)[1] === "assets";
+    if (!insideCardAssets) throw requestError(400, "Attachment path is outside the card asset folders.");
     return absolutePath;
   }
 
-  function storeUploads(id, assets) {
+  // Stored paths use "/" so a repo written on one OS resolves on another.
+  function storeUploads(relativeDir, assets) {
     const attachments = [];
     for (const [index, asset] of assets.entries()) {
       const payload = uploadPayload(asset, index);
       if (!payload) continue;
-      const name = assetName(asset?.name, payload.mime, `asset_${index}`);
-      const relativePath = path.posix.join(".agent-annotations", "assets", "open", `${id}_${index}_${name}`);
-      fs.writeFileSync(path.join(repoRoot, relativePath), Buffer.from(payload.base64, "base64"));
+      const name = `${index}_${assetName(asset?.name, payload.mime, `asset_${index}`)}`;
+      const relativePath = path.posix.join(relativeDir, name);
+      const absolutePath = path.join(repoRoot, relativePath);
+      fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+      fs.writeFileSync(absolutePath, Buffer.from(payload.base64, "base64"));
       attachments.push({ kind: "asset", mime: payload.mime, path: relativePath });
     }
     return attachments;
@@ -65,45 +70,7 @@ function createAssetStore(repoRoot, assetDirs) {
     return { ...attachment, absolutePath, name: path.basename(absolutePath) };
   }
 
-  function resolveAttachments(attachments) {
-    const moves = attachments.map((attachment) => {
-      if (!attachment?.path) return { attachment };
-      const source = managedPath(attachment.path);
-      if (!fs.existsSync(source)) throw new Error(`Attachment file is missing: ${attachment.path}`);
-      const relativePath = path.posix.join(".agent-annotations", "assets", "resolved", path.basename(source));
-      const destination = managedPath(relativePath);
-      if (fs.existsSync(destination)) throw new Error(`Resolved attachment already exists: ${relativePath}`);
-      return { attachment, source, destination, relativePath };
-    });
-
-    const completed = [];
-    try {
-      for (const move of moves) {
-        if (!move.source) continue;
-        fs.renameSync(move.source, move.destination);
-        completed.push(move);
-      }
-    } catch (error) {
-      const rollbackErrors = [];
-      for (const move of completed.reverse()) {
-        try {
-          fs.renameSync(move.destination, move.source);
-        } catch (rollbackError) {
-          rollbackErrors.push(rollbackError.message);
-        }
-      }
-      if (rollbackErrors.length) {
-        throw new Error(`${error.message} Rollback failed: ${rollbackErrors.join("; ")}`);
-      }
-      throw error;
-    }
-
-    return moves.map((move) => (
-      move.relativePath ? { ...move.attachment, path: move.relativePath } : move.attachment
-    ));
-  }
-
-  return { readAttachment, resolveAttachments, storeUploads };
+  return { readAttachment, storeUploads };
 }
 
 module.exports = { createAssetStore };

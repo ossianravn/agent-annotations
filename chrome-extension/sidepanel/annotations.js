@@ -5,6 +5,7 @@ import { closeAssetPreview } from "./attachments.js";
 import { clearSavedAttachmentPreviews, renderSavedAttachments } from "./saved_attachments.js";
 import { getAnnotationsForRoute, markResolved, updateAnnotationComment } from "./receiver.js";
 import { discardLocal, loadLocalAnnotations, localCard, requestSync } from "./outbox.js";
+import { renderCardMeta, statusLabel } from "./card_detail.js";
 
 let detailSessionId = 0;
 let activeCommentSave = null;
@@ -38,6 +39,7 @@ function listItem(annotation) {
   type.prepend(dot);
   const top = textSpan("item-top", "");
   top.appendChild(type);
+  top.appendChild(textSpan(`item-status${annotation.status === "waiting" ? " is-attention" : ""}`, statusLabel(annotation)));
   if (annotation.tags?.length) top.appendChild(textSpan("item-tags", annotation.tags.join(", ")));
 
   const attachmentCount = annotation.attachments?.length || 0;
@@ -69,7 +71,9 @@ export function renderList() {
   const local = state.localAnnotations.map((item) => localCard(item, localHandlers));
   const total = local.length + state.openAnnotations.length;
   renderOpenCount(state.listError && !state.listError.offline && !local.length ? null : total);
-  root.append(...local, ...state.openAnnotations.map(listItem));
+  // Cards waiting on you come first: they are the ones that need you.
+  const saved = [...state.openAnnotations].sort((left, right) => (right.status === "waiting") - (left.status === "waiting"));
+  root.append(...local, ...saved.map(listItem));
   if (state.listError) {
     // Offline is an expected state, so it reads as a note rather than an error.
     const error = document.createElement("p");
@@ -115,6 +119,7 @@ export function openDetail(annotation) {
   $("detailLocator").textContent = annotation.element ? elementSummary(annotation) : "—";
   $("detailComment").value = annotation.comment || "";
   $("detailHint").textContent = "";
+  renderCardMeta(annotation);
   syncDetailControls();
   if (!$("detailDialog").open) $("detailDialog").showModal();
   renderSavedAttachments(annotation).catch((error) => {

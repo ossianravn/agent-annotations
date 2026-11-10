@@ -40,6 +40,7 @@ import { fillSettingsForm, saveSettings, testConnection } from "./receiver.js";
 import { outboxIsLarge, outcomeMessage, queueAnnotation, requestSync } from "./outbox.js";
 import { discardDraft, scheduleDraftSave } from "./drafts.js";
 import { bindTabs } from "./tabs.js";
+import { bindStatusSelect } from "./card_detail.js";
 import { refreshRoute } from "./projects.js";
 import { renderProjectList } from "./project_settings.js";
 
@@ -155,7 +156,8 @@ function bindComposer() {
     }
   });
 
-  $("send").addEventListener("click", () => sendAnnotation());
+  $("send").addEventListener("click", () => sendAnnotation("ready"));
+  $("saveDraft").addEventListener("click", () => sendAnnotation("draft"));
 }
 
 async function resetComposerAfterSend() {
@@ -170,14 +172,16 @@ async function resetComposerAfterSend() {
   return failures.length === 0;
 }
 
-async function sendAnnotation() {
+// "draft" stays with you on the board; "ready" is for an agent to pick up.
+async function sendAnnotation(status) {
   if (state.isSending) return;
   state.isSending = true;
   updateSendEnabled();
-  await runControl($("send"), async () => {
+  const control = status === "draft" ? $("saveDraft") : $("send");
+  await runControl(control, async () => {
     await refreshActiveTabInfo();
     await Promise.all([refreshSelectedElementGeometry({ allowStored: true }), refreshLayout()]);
-    const item = await queueAnnotation();
+    const item = await queueAnnotation(status);
     // The annotation is safe in the browser now: a cleanup failure must not
     // read as a failed save, or the user would save it again.
     const reset = await resetComposerAfterSend();
@@ -215,6 +219,7 @@ function bindDialogs() {
   $("assetDialog").addEventListener("close", resetAssetPreview);
   $("copyPrompt").addEventListener("click", copySelectedAnnotation);
   $("markResolved").addEventListener("click", resolveSelectedAnnotation);
+  bindStatusSelect({ refreshList, closeDetail });
 }
 
 export function bindUI() {

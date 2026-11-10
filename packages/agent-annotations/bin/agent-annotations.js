@@ -33,6 +33,7 @@ Usage:
   agent-annotations setup [options]   # recommended: installs + starts receiver
   agent-annotations start [options]   # starts receiver (expects .tools/ installed)
   agent-annotations init [options]    # installs templates only (no receiver)
+  agent-annotations cards <command>   # list, claim and hand back cards (see: cards help)
 
 Options:
   --agent     Which agent integration(s) to install (default: auto)
@@ -268,12 +269,9 @@ function renderCopilotSnippet() {
 
 ## Agent Annotations
 
-- UI annotations may exist under \`.agent-annotations/\`.
-- If the user asks you to check annotations (or it is clearly relevant), read:
-  - \`.agent-annotations/inbox.jsonl\` (open items)
-  - \`.agent-annotations/inbox-resolved.jsonl\` (archive, if present)
-- Use annotation data to decide *what to change* and *where*.
-- After you implement a fix, mark related annotations as \`resolved\`: POST \`{"status":"resolved"}\` to the receiver's \`/annotations/<id>/status\` (token in \`.agent-annotations/token.txt\`), or move the record from \`inbox.jsonl\` to \`inbox-resolved.jsonl\` with \`"status": "resolved"\`.
+- UI cards from the human live in \`.agent-annotations/cards/<id>/card.md\` (JSON front matter, then the comment), with screenshots in \`cards/<id>/assets/\`.
+- If the user asks you to check annotations or work the board, claim the next card with \`node .tools/agent-annotations-cards.cjs next --agent copilot\` and use the card's page, element locators and screenshots to decide *what to change* and *where*.
+- Work only on \`ready\` cards, never drafts. When finished, run \`handback <id> --review "what changed"\`; if blocked, \`handback <id> --question "..."\`. Never mark cards done yourself.
 
 Browser validation:
 - Only validate in a browser if the user explicitly requests it, and only using tools available in your environment.
@@ -344,7 +342,23 @@ function runInit(args, repoRoot) {
   return { repoRoot, agents };
 }
 
+// Agents usually run the repo's own .tools/agent-annotations-cards.cjs; this
+// is the same tool for repos that don't have it installed.
+function runCards(argv) {
+  const cardsTool = path.join(__dirname, "..", "templates", "repo-integration", ".tools", "agent-annotations-cards.cjs");
+  try {
+    process.exitCode = require(cardsTool).run(argv, { repoRoot: tryRepoRoot() });
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
+}
+
 function main() {
+  if (process.argv[2] === "cards") {
+    runCards(process.argv.slice(3));
+    return;
+  }
   const args = parseArgs(process.argv);
   if (!args.cmd || args.cmd === "-h" || args.cmd === "--help") {
     usage();

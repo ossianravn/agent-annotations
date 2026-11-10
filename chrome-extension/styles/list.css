@@ -95,3 +95,18 @@
   -webkit-line-clamp: 3;
   line-clamp: 3;
 }
+
+.item-status {
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Waiting on you is the one status that asks something of the reader. */
+.item-status.is-attention {
+  color: var(--warn);
+  font-weight: 600;
+}

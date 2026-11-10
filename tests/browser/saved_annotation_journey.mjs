@@ -43,7 +43,7 @@ export async function verifySavedAnnotationDetail(chrome, panelSession) {
       )
     };
   })()`);
-  assert.match(previewState.path, /\.agent-annotations[\\/]assets[\\/]open[\\/].+\.png$/);
+  assert.match(previewState.path, /^\.agent-annotations\/cards\/[^/]+\/assets\/0_.+\.png$/);
   assert.equal(previewState.captionFollowsImage, true);
   assert.ok(previewState.ratioDelta < 0.01, "saved preview should preserve the image aspect ratio");
   await click(chrome, panelSession, "#closeAsset");
