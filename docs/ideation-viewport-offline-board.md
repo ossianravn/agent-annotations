@@ -1,10 +1,25 @@
 # Ideation: desktop-width annotation, offline capture, and a per-project board
 
-Status: ideation, nothing built yet. Written 2026-11-05 after the v0.4.1 review
-and the side-panel UI pass. Each section ends with a recommendation and the
-questions that need an answer before work starts.
+Status: decided, nothing built yet. Written 2026-11-05 after the v0.4.1 review
+and the side-panel UI pass; answers recorded inline ("Answer: …") on
+2026-11-10 and summarised under Decisions.
 
 The three ideas share one missing concept, so it comes first.
+
+## Decisions (2026-11-10)
+
+| Topic | Decision |
+| --- | --- |
+| Project identity | Adopt the project model in section 0: the repo (`projectId`) is the identity, URLs only route. |
+| Page width | Build zoom compensation as an opt-in "Desktop width" switch, plus layout metadata on every annotation. 70–80% text is acceptable. The floating panel stays a fallback. |
+| Zoom on close | Restore the zoom the tab had before the panel opened. (The answer "Yes definitely" was read this way; say so if you meant the opposite.) |
+| Offline | Build the local-first outbox in section 2 as proposed. |
+| Pages with no project | Capture is allowed anywhere. An unmatched page offers to create a project from the page, or to add it to an existing one. See "Pages that match no project" in section 2. |
+| Statuses | Needs input and In review merge into one **Waiting on you** column. |
+| New cards | Start as **Draft** until you mark them ready. |
+| Archiving | Manual only, for now. |
+| Several agents | Yes: atomic claims and WIP limits are in the first version. |
+| External trackers | Later. |
 
 ## 0. The missing concept: a project
 
@@ -37,6 +52,9 @@ all three ideas below break it:
   is actually running there.
 - The key for the board (question 3) is therefore the **repo** (`projectId`),
   not the domain. Domains and ports are only routing hints.
+
+Answer: Yes, sounds right. Go ahead.
+
 
 ## 1. Annotating the page at its real width
 
@@ -73,11 +91,18 @@ too, for example `Page 1440px · zoom 72%`, so it is never a surprise.
    people who prefer it. Most panel modules (composer, list, dialogs) can be
    reused inside the iframe.
 
+Answer: Yes, sounds right. Go ahead.
+
+
 ### Questions
 
 - Is 70–80% text size acceptable while annotating, or is it a deal-breaker?
+Answer: Fine. 
+
 - When the panel closes, should zoom always return to what it was before, or
   stay where you left it?
+
+Answer: Yes definitely
 
 ## 2. Capture while the repo is offline, sync when it's back
 
@@ -115,12 +140,51 @@ running receiver, and a failed save leaves the draft in the composer.
 - **Storage limits.** Warn when the outbox passes, say, 200 MB, and consider the
   optional `unlimitedStorage` permission. Attachments are the only large part.
 
+Answer: Yes, sounds right. Go ahead.
+
+
 ### Questions
 
 - Should captures without a project (a random website) be allowed at all, or
   must every page belong to a project?
+  Answer: Good question. Every page could also be localhost URLs that can change (ip/localhost/port) as well as real domains for live sites. IDK. We need to weigh pros and cons. I am for flexibility if it doesn't introduce other problems. 
 - Is the "Unassigned" bucket enough, or should the extension offer to create a
   project from the current page?
+  Answer: Good question. Create project sounds right if possible. 
+
+### Pages that match no project
+
+Pages come from three kinds of address: local dev servers whose host and port
+change (`localhost:3000`, `127.0.0.1:5173`, a LAN IP), preview or staging URLs,
+and live domains. The options:
+
+| Option | For | Against |
+| --- | --- | --- |
+| Require a project before any capture | Nothing is ever orphaned; routing is always explicit. | Blocks the quick note on a new site or a new port, which is exactly when ideas happen. |
+| Capture anywhere into an "Unassigned" bucket | Never blocks. | Unassigned items pile up in a list nobody looks at, and never reach an agent. |
+| **Capture anywhere, and assign at capture time** | Never blocks, and most items get a project immediately. | One extra prompt the first time you save on a new address. |
+
+**Decision: the third option.**
+
+- On a page that matches no project, the panel shows an inline choice above
+  Save: *Create project from this page*, *Add this page to (project)*, or *Not
+  now*. *Not now* saves to Unassigned, which never syncs and stays visible
+  until assigned.
+- Pre-fill from what is running. If a receiver is connected, suggest its
+  project, because a live domain usually belongs to the repo you have open
+  (for example `naiveindieline.com` → `naive-indie-line`). The URL pattern is
+  pre-filled with the page's origin.
+- Treat loopback hosts as one host: `localhost`, `127.0.0.1` and `[::1]` match
+  each other, so a project doesn't break when the dev server switches between
+  them.
+- Ports change, so a localhost pattern is a hint, not an identity. When you
+  capture on a new localhost port while a known project's receiver is
+  connected, offer to add that port to the project.
+- Show the routed project's name in the panel header at all times, so wrong
+  routing is visible before you save.
+- Guard against port reuse: if the page routes to project A but the receiver
+  that answers reports project B, the panel warns before saving ("This page
+  belongs to A, but the running receiver is B") and offers to re-route.
 
 ## 3. A per-project kanban board for human → agent work
 
@@ -184,9 +248,8 @@ but noisy for solo work. Assets stay ignored by default.
 | **Draft** | Captured, not yet specified. Agents ignore it. | You (the default for quick ideas) |
 | **Ready for agent** | Specified enough to act on. Agents pull from the top. | You |
 | **In progress** | Claimed by an agent, with `claimedBy` and `claimedAt` set. | Agent (atomic claim) |
-| **Needs input** | The agent has a question; it is shown on the card. | Agent |
-| **In review** | The agent says it's done, with a summary and links attached. | Agent |
-| **Done** | You verified it. | You |
+| **Waiting on you** | The agent handed it back, with `waitingReason` set: `question` (shown on the card) or `review` (done, with a summary and links attached). | Agent |
+| **Done** | You verified it. Stays on the board until you archive it. | You |
 | **Won't do** | Dropped, with a reason. | You |
 
 Rules that keep the flow honest. These follow ordinary kanban practice: pull,
@@ -199,18 +262,22 @@ explicit policies, and limited work in progress.
   atomically. Two agents can never hold the same card.
 - **Limit work in progress.** For example, at most two cards In progress per
   agent. The board shows the limit on the column.
-- **Definition of done.** Moving a card to In review requires the agent to
-  write a summary of the change and tick (or explain) each acceptance item.
-- **Review in the browser.** Opening a card that is In review offers "Show on
-  page": the extension opens its URL and highlights its element, so verifying
-  takes one click. Reject sends the card back to Ready with your comment.
+- **Definition of done.** Handing a card back for review requires the agent
+  to write a summary of the change and tick (or explain) each acceptance item.
+- **Review in the browser.** Opening a card that is waiting for review offers
+  "Show on page": the extension opens its URL and highlights its element, so
+  verifying takes one click. Reject sends the card back to Ready with your
+  comment. Answering a question does the same.
 - **Blocked is a flag, not a column.** A card waiting on something outside the
   agent's and your control keeps its column and gets a blocked flag with a
-  reason. Needs input is different: it is a handoff to you, so it's a column.
+  reason. Waiting on you is different: it is a handoff to you, so it's a column.
+- **Archive is manual.** Done cards stay until you archive them; archived
+  cards keep their files and leave the board.
 
 Mapping today's data: `open` becomes **Ready for agent** (today every saved
 annotation is immediately visible to the agent), and `resolved` becomes
-**Done**. The composer gets a choice: *Save as draft* or *Send to agent*.
+**Done**. New cards start as **Draft**; the composer's Save becomes *Save as
+draft*, next to *Send to agent*, which saves straight to Ready.
 
 ### How agents work with it
 
@@ -220,13 +287,16 @@ Give agents a CLI instead of `curl` with tokens:
 npx agent-annotations cards list --status ready
 npx agent-annotations cards claim <id>
 npx agent-annotations cards comment <id> "Found the race in useCartTotal"
-npx agent-annotations cards move <id> review --summary "…" --link <commit>
+npx agent-annotations cards handback <id> --review --summary "…" --link <commit>
+npx agent-annotations cards handback <id> --question "Should the total lock or show a spinner?"
 ```
 
 The CLI talks to the receiver when it's running, so claims are atomic. When it
 isn't, the CLI edits the files directly, protected by a lock file. The
 `check-agent-annotations` skill is rewritten around this loop: list Ready,
-claim, work, comment, move to In review or Needs input.
+claim, work, comment, hand back for review or with a question. Several agents
+can run at once, so claims carry the agent's name and a heartbeat; a claim
+with no heartbeat for, say, 30 minutes can be released by you.
 
 ### Where the board UI lives
 
@@ -244,20 +314,28 @@ claim, work, comment, move to In review or Needs input.
 
 - Statuses: does the list above match how you work, or should Needs input and
   In review merge into one "Waiting on you" column?
+
+Answer: One waiting column sounds good. 
+
 - Should new cards from the panel default to **Draft** or **Ready for agent**?
+Answer: Draft until marked as ready. ½
 - Should Done cards be archived after N days, or kept on the board?
+Answer: Let's keep archiving a manual user action for now. 
 - Is there ever more than one agent per project? That decides whether claims
   and WIP limits are needed in the first version.
+Answer: Yes, sometimes, and probably more like in the future the way things are heading.   
 - Do you want an export path to an external tracker (GitHub Issues, Trello,
   Linear) later? It doesn't change the design now, but the IDs and fields
   above are chosen to map cleanly.
+  Answer: This can wait for later.
 
 ## Suggested order of work
 
 1. **Layout metadata, plus the zoom-compensation switch.** Small, and it
    answers the readability question with real use.
-2. **Projects.** `projectId` in the receiver, a project list in Settings, and
-   URL routing. Everything else depends on it.
+2. **Projects.** `projectId` in the receiver, a project list in Settings, URL
+   routing with loopback hosts treated as one, the project name in the panel
+   header, and "Create project from this page".
 3. **Local-first outbox and sync** for today's annotations. This proves the
    sync model on the simple case.
 4. **Card model in the repo, with the migration** from `inbox.jsonl`, plus the
