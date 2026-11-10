@@ -24,6 +24,27 @@ function sleepSync(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
+const REPLACE_WAIT_MS = 2000;
+
+// Windows refuses to replace a file while any process has it open (an agent
+// reading its card, an editor, the indexer, antivirus), so keep trying briefly
+// instead of losing the edit.
+function replaceFile(source, target) {
+  const deadline = Date.now() + REPLACE_WAIT_MS;
+  for (let delay = 10; ; delay = Math.min(delay * 2, 100)) {
+    try {
+      fs.renameSync(source, target);
+      return;
+    } catch (error) {
+      if (!["EPERM", "EACCES", "EBUSY"].includes(error.code) || Date.now() > deadline) {
+        fs.rmSync(source, { force: true });
+        throw error;
+      }
+      sleepSync(delay);
+    }
+  }
+}
+
 function now() {
   return new Date().toISOString();
 }
@@ -155,7 +176,7 @@ function createCardStore(repoRoot, options = {}) {
     fs.mkdirSync(directory, { recursive: true });
     const file = path.join(directory, "card.md");
     fs.writeFileSync(`${file}.tmp`, serializeCard(card), "utf8");
-    fs.renameSync(`${file}.tmp`, file);
+    replaceFile(`${file}.tmp`, file);
     return card;
   }
 

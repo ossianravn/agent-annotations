@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -111,6 +111,25 @@ test("one broken card file does not hide the others", async () => {
     await writeFile(path.join(repo, ".agent-annotations/cards/card_0/card.md"), "---\n{ not json\n---\n");
     const cards = await cli(repo, "list");
     assert.deepEqual(cards.map((card) => card.id), ["card_1"]);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+// Windows refuses to replace a file another process has open; the write waits.
+test("a card saves while another process is reading it", { skip: process.platform !== "win32" }, async () => {
+  const repo = await repoWithCards(["ready"]);
+  try {
+    const file = path.join(repo, ".agent-annotations/cards/card_0/card.md");
+    const holder = spawn(process.execPath, ["-e", `const fd = require("fs").openSync(process.argv[1], "r"); console.log("open"); setTimeout(() => require("fs").closeSync(fd), 300);`, file]);
+    await new Promise((resolve, reject) => {
+      holder.stdout.once("data", resolve);
+      holder.once("error", reject);
+    });
+    const claimed = await cli(repo, "next", "--agent", "agent-1");
+    assert.equal(claimed.claimedBy, "agent-1");
+    assert.match(await readFile(file, "utf8"), /"claimedBy": "agent-1"/);
+    await new Promise((resolve) => holder.exitCode === null ? holder.once("exit", resolve) : resolve());
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

@@ -36,10 +36,11 @@ let renderedKey = "";
 
 // Live refreshes arrive while you click; redrawing an unchanged list would
 // swallow the click and drop focus, so only a real change redraws it.
-export function renderAcceptance(card, handlers) {
+// force redraws anyway: after a failed save the boxes must show what's stored.
+export function renderAcceptance(card, handlers, { force = false } = {}) {
   const items = card.acceptance || [];
   const key = `${card.id}:${JSON.stringify(items)}`;
-  if (key === renderedKey && $("cardAcceptance").childElementCount) return;
+  if (!force && key === renderedKey && $("cardAcceptance").childElementCount) return;
   renderedKey = key;
   const list = $("cardAcceptance");
   list.replaceChildren(...items.map((item, index) => criterion(item, index, handlers)));

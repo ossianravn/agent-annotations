@@ -34,10 +34,10 @@ function activityItem(entry) {
   return item;
 }
 
-function renderFacts(card) {
+function renderFacts(card, { force = false } = {}) {
   $("cardStatus").value = selectValue(card);
   renderType(card);
-  renderAcceptance(card, acceptanceHandlers(current, saveField));
+  renderAcceptance(card, acceptanceHandlers(current, saveField), { force });
   $("cardClaim").textContent = card.status === "in_progress" && card.claimedBy
     ? `Claimed by ${card.claimedBy}, last active ${relativeTime(card.heartbeatAt || card.claimedAt)}. Move it back to Ready to release it.`
     : card.archivedAt ? `Archived ${relativeTime(card.archivedAt)}.` : "";
@@ -103,7 +103,7 @@ async function change(task, message, { close = false } = {}) {
     if (close) $("cardDialog").close();
   } catch (error) {
     hint(`${error?.message || error}`);
-    renderFacts(card);
+    renderFacts(card, { force: true });
   }
 }
 
@@ -134,6 +134,8 @@ export function bindCardDialog() {
     closeCard();
   });
   dialog.addEventListener("close", () => {
+    // The event arrives a task later; a card opened since then stays open.
+    if (dialog.open) return;
     releaseThumbnails();
     currentId = null;
   });

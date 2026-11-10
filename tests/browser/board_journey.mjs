@@ -77,6 +77,8 @@ export async function verifyBoard(chrome, { extensionId, panelSession, receiverR
   }
   await waitForEvaluation(chrome, boardSession, inColumn("ready", IDEA), "moved with the keyboard");
   await waitForEvaluation(chrome, boardSession, `document.activeElement?.textContent.includes(${JSON.stringify(IDEA)})`, "focus follows the moved card");
+  // As with dragging, the board moves the card before the receiver has written it.
+  await waitFor(async () => (await readCards(receiverRepo)).find((candidate) => candidate.comment === IDEA)?.status === "ready", "keyboard move saved to the card");
 
   // Done, then archived: it leaves the board until Show archived is on.
   await evaluate(chrome, boardSession, `[...document.querySelectorAll('.board-card')].find((item) => item.textContent.includes(${JSON.stringify(IDEA)})).click()`);

@@ -175,6 +175,16 @@
   inline-size: min(44rem, calc(100vw - 2rem));
 }
 
+/* Status beside the actions: a message appearing never moves the buttons. */
+.footer-status,
+.footer-status:empty {
+  display: block;
+  flex: 1 1 0;
+  min-inline-size: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .title-input {
   flex: 1;
   min-inline-size: 0;
