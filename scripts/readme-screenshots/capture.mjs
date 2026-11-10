@@ -32,6 +32,8 @@ const SCALE = 2;
 const PAGE = { width: 1120, height: 760 };
 const PANEL_GUESS = 400;
 const BOARD = { width: 1440, height: 860 };
+// The board shot only needs the cards, not the empty bottom of each column.
+const BOARD_SHORT = { width: 1440, height: 560 };
 
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-readme-"));
 const repo = path.join(temporaryRoot, "juniper-web");
@@ -149,9 +151,11 @@ try {
     await sleep(400);
     shots[theme] = {
       page: await capture(pageSession, `page-${theme}`),
-      panel: await capture(panelSession, `panel-${theme}`),
-      board: await capture(boardSession, `board-${theme}`)
+      panel: await capture(panelSession, `panel-${theme}`)
     };
+    await viewport(boardSession, BOARD_SHORT);
+    shots[theme].board = await capture(boardSession, `board-${theme}`);
+    await viewport(boardSession, BOARD);
     await openCard(boardSession, "Feature checkmarks");
     shots[theme].card = await capture(boardSession, `card-${theme}`);
     await evaluate(chrome, boardSession, "document.querySelector('#cardDialog').close()");
@@ -165,8 +169,8 @@ try {
   for (const theme of ["light", "dark"]) {
     await chrome.command("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: theme }] }, frameSession);
     await frame(frameSession, `panel-${theme}.png`, browserFrame(shots[theme], demoUrl, PANEL));
-    await frame(frameSession, `board-${theme}.png`, boardFrame(shots[theme].board, "Agent Annotations board"));
-    await frame(frameSession, `card-${theme}.png`, boardFrame(shots[theme].card, "Agent Annotations board"));
+    await frame(frameSession, `board-${theme}.png`, boardFrame(shots[theme].board, "Agent Annotations board", BOARD_SHORT));
+    await frame(frameSession, `card-${theme}.png`, boardFrame(shots[theme].card, "Agent Annotations board", BOARD));
     await frame(frameSession, `agent-${theme}.png`, terminalFrame(terminalLog));
   }
   process.stdout.write(`Screenshots written to ${path.relative(root, outDir)}.\n`);
@@ -354,11 +358,11 @@ function browserFrame(shot, url, panel) {
   </div></div>`;
 }
 
-function boardFrame(image, title) {
+function boardFrame(image, title, size) {
   return `<!DOCTYPE html><meta charset="utf-8"><style>${frameCss()}</style>
   <div class="shot"><div class="window">
     <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="address">${escapeHtml(title)}</span></div>
-    <div class="content"><img src="${image}" width="${BOARD.width}" height="${BOARD.height}" alt=""></div>
+    <div class="content"><img src="${image}" width="${size.width}" height="${size.height}" alt=""></div>
   </div></div>`;
 }
 
