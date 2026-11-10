@@ -9,6 +9,7 @@ import {
 import { setConnectionStatus } from "./feedback.js";
 import { renderProjectPrompt } from "./project_prompt.js";
 import { checkToken, probeReceiver } from "./receiver.js";
+import { requestSync } from "./outbox.js";
 import { $, state } from "./shared.js";
 
 // "Not now" lasts for this panel session only.
@@ -91,11 +92,20 @@ export async function refreshRoute() {
   const route = await resolveRoute();
   if (requestId !== routeRequestId) return;
   state.project = route.project;
-  state.target = route.target ? { receiverUrl: route.target.receiverUrl, token: route.target.token } : null;
+  state.target = route.target
+    ? {
+      receiverUrl: route.target.receiverUrl,
+      token: route.target.token,
+      projectId: route.target.id ?? null,
+      name: route.target.name ?? null
+    }
+    : null;
   state.targetBlockedReason = blockedReason(route);
   $("projectName").textContent = route.project?.name || "No project";
   setConnectionStatus(route.status);
   renderProjectPrompt(route.prompt, { addPage, dismiss, saveToken });
+  // A repo that just became reachable may have annotations waiting for it.
+  if (route.status === "ok") requestSync();
 }
 
 async function storeProjects(projects) {

@@ -17,6 +17,7 @@ import {
 import { FINAL_SAVED_COMMENT, verifySavedAnnotationDetail } from "./saved_annotation_journey.mjs";
 import { verifyDesktopWidthToggle, verifyZoomRestoredOnPanelClose } from "./desktop_width_journey.mjs";
 import { verifyProjectRouting } from "./projects_journey.mjs";
+import { verifyOfflineCapture } from "./offline_journey.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const extensionPath = path.join(root, "chrome-extension");
@@ -38,27 +39,35 @@ const fixtureServer = http.createServer((_request, response) => {
 });
 await new Promise((resolve) => fixtureServer.listen(fixturePort, "127.0.0.1", resolve));
 
-const receiver = spawn(process.execPath, [
-  receiverPath,
-  "--repo", receiverRepo,
-  "--host", "127.0.0.1",
-  "--port", String(receiverPort),
-  "--base-url", `http://127.0.0.1:${receiverPort}`
-], {
-  cwd: root,
-  env: { ...process.env, ANNOTATION_TOKEN: token },
-  stdio: ["ignore", "ignore", "pipe"]
-});
 let receiverErrors = "";
-receiver.stderr.setEncoding("utf8");
-receiver.stderr.on("data", (chunk) => { receiverErrors += chunk; });
-await waitFor(async () => {
-  try {
-    return (await fetch(`http://127.0.0.1:${receiverPort}/health`)).ok;
-  } catch {
-    return false;
-  }
-}, "receiver startup");
+let receiver = null;
+// Restartable, so the journey can take the repo offline and bring it back.
+async function startReceiver() {
+  receiver = spawn(process.execPath, [
+    receiverPath,
+    "--repo", receiverRepo,
+    "--host", "127.0.0.1",
+    "--port", String(receiverPort),
+    "--base-url", `http://127.0.0.1:${receiverPort}`
+  ], {
+    cwd: root,
+    env: { ...process.env, ANNOTATION_TOKEN: token },
+    stdio: ["ignore", "ignore", "pipe"]
+  });
+  receiver.stderr.setEncoding("utf8");
+  receiver.stderr.on("data", (chunk) => { receiverErrors += chunk; });
+  await waitFor(async () => {
+    try {
+      return (await fetch(`http://127.0.0.1:${receiverPort}/health`)).ok;
+    } catch {
+      return false;
+    }
+  }, "receiver startup");
+}
+async function stopReceiver() {
+  await stopProcess(receiver);
+}
+await startReceiver();
 
 const chrome = ChromePipe.launch({ executablePath: chromePath, profilePath });
 try {
@@ -193,6 +202,9 @@ try {
   assert.match(resolved, /"layout":\{"viewportWidth":\d+/);
 
   await verifyDesktopWidthToggle(chrome, panelSession, pageSession, startup.lockedTabId);
+  await verifyOfflineCapture(chrome, panelSession, pageSession, {
+    stopReceiver, startReceiver, receiverRepo, repoName: path.basename(receiverRepo)
+  });
 
   const cleanupKey = await evaluate(chrome, panelSession, `(async () => {
     const shared = await import(chrome.runtime.getURL('sidepanel/shared.js'));

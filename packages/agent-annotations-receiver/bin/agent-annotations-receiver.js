@@ -88,24 +88,26 @@ function normalizedSeverity(value) {
   return severity;
 }
 
-function annotationId(value) {
-  const supplied = String(value || "").trim();
-  if (!supplied) return `ann_${new Date().toISOString().replace(/[:.]/g, "-")}_${crypto.randomBytes(4).toString("hex")}`;
-  // IDs become part of asset filenames, so only plain filename characters are allowed.
-  if (!ANNOTATION_ID_PATTERN.test(supplied)) {
-    throw new RequestError(400, "Annotation 'id' may only contain letters, digits, '.', '_' and '-'.");
-  }
-  const existing = [...readJsonl(files.open), ...readJsonl(files.resolved)];
-  if (existing.some((annotation) => annotation?.id === supplied)) {
-    throw new RequestError(409, `Annotation already exists: ${supplied}`);
-  }
-  return supplied;
-}
-
 function createAnnotation(body) {
   const annotation = body?.annotation;
   if (!annotation || typeof annotation !== "object") throw new RequestError(400, "Missing 'annotation' object.");
-  const id = annotationId(annotation.id);
+  const supplied = String(annotation.id || "").trim();
+  if (supplied) {
+    // IDs become part of asset filenames, so only plain filename characters are allowed.
+    if (!ANNOTATION_ID_PATTERN.test(supplied)) {
+      throw new RequestError(400, "Annotation 'id' may only contain letters, digits, '.', '_' and '-'.");
+    }
+    const existing = [...readJsonl(files.open), ...readJsonl(files.resolved)]
+      .find((candidate) => candidate?.id === supplied);
+    if (existing) {
+      // The extension retries a send whose response it never saw; the same
+      // content hash means it is that send again, not a conflicting one.
+      const clientHash = String(annotation.clientHash || "");
+      if (clientHash && existing.clientHash === clientHash) return { stored: existing, duplicate: true };
+      throw new RequestError(409, `Annotation already exists: ${supplied}`);
+    }
+  }
+  const id = supplied || `ann_${new Date().toISOString().replace(/[:.]/g, "-")}_${crypto.randomBytes(4).toString("hex")}`;
   const assets = Array.isArray(body.assets) ? body.assets : [];
   const attachments = assetStore.storeUploads(id, assets);
   const stored = {
@@ -117,7 +119,7 @@ function createAnnotation(body) {
     attachments
   };
   appendJsonl(files.open, stored);
-  return stored;
+  return { stored, duplicate: false };
 }
 
 function listAnnotations(url) {
@@ -233,8 +235,8 @@ async function handleRequest(request, response, token, project) {
   }
   if (request.method === "POST" && url.pathname === "/annotations") {
     requireAuth(request, token);
-    const annotation = createAnnotation(await readJson(request, MAX_CREATE_BODY_BYTES));
-    sendJson(response, 200, { ok: true, id: annotation.id, attachments: annotation.attachments });
+    const { stored, duplicate } = createAnnotation(await readJson(request, MAX_CREATE_BODY_BYTES));
+    sendJson(response, 200, { ok: true, id: stored.id, attachments: stored.attachments, duplicate });
     return;
   }
   const attachmentMatch = /^\/annotations\/([^/]+)\/attachments\/(\d+)$/.exec(url.pathname);

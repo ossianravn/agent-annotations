@@ -19,7 +19,7 @@ export async function verifyProjectRouting(chrome, panelSession, repoName) {
     await panel.loadProjectsIntoState();
     await panel.refreshRoute();
   })()`);
-  await waitForEvaluation(chrome, panelSession, `document.querySelector('#connStatusLabel').textContent === 'Other repo running' && ${promptText}.includes('Saving is paused')`, "wrong-repo guard");
+  await waitForEvaluation(chrome, panelSession, `document.querySelector('#connStatusLabel').textContent === 'Other repo running' && ${promptText}.includes('wait in the browser')`, "wrong-repo guard");
   const blocked = await evaluate(chrome, panelSession, `(async () => {
     const receiver = await import(chrome.runtime.getURL('sidepanel/receiver.js'));
     try { await receiver.getAnnotationsForRoute(); return 'not blocked'; } catch (error) { return error.message; }

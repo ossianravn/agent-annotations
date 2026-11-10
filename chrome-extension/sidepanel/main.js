@@ -4,6 +4,7 @@ import {
   restoreAnnotationMode
 } from "./annotation_session.js";
 import { bindUI, refreshPage } from "./events.js";
+import { refreshList } from "./annotations.js";
 import { announceAction } from "./feedback.js";
 import { loadSettings } from "./receiver.js";
 import { loadProjectsIntoState, onProjectsChanged } from "./projects.js";
@@ -37,6 +38,10 @@ async function main() {
     syncLayout: syncDesktopWidth
   });
   bindUI();
+  // The worker sends waiting annotations in the background; show the result.
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "OUTBOX_CHANGED") refreshList();
+  });
   bindDesktopWidth();
   bindDraftLifecycle();
   await Promise.all([refreshPage(), syncDesktopWidth()]);

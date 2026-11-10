@@ -222,6 +222,26 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
     assert.equal((await createWithId(created.id)).status, 409);
     assert.equal((await createWithId("client-chosen.id_1")).status, 200);
 
+    // A retried send (same ID and content hash) succeeds once, without a second record.
+    const retry = (comment) => fetch(`${baseUrl}/annotations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Annotation-Token": token },
+      body: JSON.stringify({ annotation: { id: "ann_retry", clientHash: "sha256-a", routeKey: "retry", comment } })
+    });
+    assert.equal((await (await retry("First send")).json()).duplicate, false);
+    const repeated = await retry("First send");
+    assert.equal(repeated.status, 200);
+    assert.equal((await repeated.json()).duplicate, true);
+    const inbox = (await readFile(path.join(temporaryRoot, ".agent-annotations/inbox.jsonl"), "utf8"))
+      .trim().split("\n").map(JSON.parse);
+    assert.equal(inbox.filter((record) => record.id === "ann_retry").length, 1);
+    const conflicting = await fetch(`${baseUrl}/annotations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Annotation-Token": token },
+      body: JSON.stringify({ annotation: { id: "ann_retry", clientHash: "sha256-b", comment: "Different" } })
+    });
+    assert.equal(conflicting.status, 409);
+
     const malformedId = await fetch(`${baseUrl}/annotations/%E0%A4%A`, {
       method: "PATCH",
       headers: {

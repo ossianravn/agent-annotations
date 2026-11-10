@@ -6,6 +6,8 @@ export const state = {
   annotateEnabled: false,
   desktopWidth: false,
   layout: null,
+  localAnnotations: [],
+  listError: null,
   projects: [],
   project: null,
   target: null,

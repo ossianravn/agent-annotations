@@ -331,7 +331,7 @@ Answer: Yes, sometimes, and probably more like in the future the way things are 
 
 ## Suggested order of work
 
-Progress: step 1 shipped in v0.4.3, step 2 in v0.4.4.
+Progress: step 1 shipped in v0.4.3, step 2 in v0.4.4, step 3 in v0.4.5.
 
 1. **Layout metadata, plus the zoom-compensation switch.** Small, and it
    answers the readability question with real use.

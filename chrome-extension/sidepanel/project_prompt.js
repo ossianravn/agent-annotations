@@ -37,7 +37,7 @@ function copyFor(prompt) {
     return [
       "This page belongs to ", { strong: prompt.project.name }, ", but ",
       { strong: prompt.running.name },
-      " is running. Saving is paused so annotations don't land in the wrong repo."
+      " is running. New annotations wait in the browser until ", { strong: prompt.project.name }, " is running."
     ];
   }
   if (prompt.kind === "token") {

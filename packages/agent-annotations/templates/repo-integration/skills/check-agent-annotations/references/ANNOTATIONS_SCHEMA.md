@@ -47,4 +47,5 @@ Resolved archive:
 - `routeKey` is `origin + pathname` (query/hash removed).
 - `rect` is viewport-relative in CSS pixels; `dpr` is devicePixelRatio at capture time.
 - `layout` says which layout the comment is about: `viewportWidth` is the CSS viewport width that media queries saw, and `zoom` is the page zoom. `desktopWidth: true` means the page was zoomed out so it kept its full width beside the extension panel. Older records have no `layout`.
+- `clientHash` is set by the extension so the receiver can recognise a retried send of the same annotation. Agents can ignore it.
 - Attachments are stored as files and referenced via repo-relative `path`.

@@ -34,7 +34,10 @@ MIME type.
 `dataUrl` or raw base64 in `dataBase64`, up to 32 MiB per request. A
 client-supplied `annotation.id` may only contain letters, digits, `.`, `_` and
 `-`, and must not already exist; leave it empty to have the receiver generate
-one. Resolving an annotation validates all
+one. The extension sends annotations from a local outbox and may retry a send
+whose response it never saw: a repeated `POST` with the same `id` and the same
+`clientHash` returns the stored record with `"duplicate": true` instead of a
+409, so a retry never fails or creates a second record. Resolving an annotation validates all
 attachment moves before changing any files and rolls back completed moves if a
 later rename fails, so the open inbox cannot be left pointing at partially
 moved attachments.

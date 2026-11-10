@@ -108,12 +108,25 @@ export async function testConnection(options = {}) {
 }
 
 // Every request goes to the receiver of the current page's project.
+function offlineError(message) {
+  const error = new Error(message);
+  error.offline = true;
+  return error;
+}
+
 async function request(path, options = {}) {
   const target = state.target;
-  if (!target) throw new Error(state.targetBlockedReason || "No receiver is reachable for this page.");
+  if (!target) {
+    if (state.targetBlockedReason) throw new Error(state.targetBlockedReason);
+    throw offlineError("No receiver is running for this page.");
+  }
   const headers = { "X-Annotation-Token": target.token, ...options.headers };
   if (options.body) headers["Content-Type"] = "application/json";
-  return fetchWithTimeout(`${target.receiverUrl}${path}`, { ...options, headers });
+  try {
+    return await fetchWithTimeout(`${target.receiverUrl}${path}`, { ...options, headers });
+  } catch {
+    throw offlineError(`${target.name || state.project?.name || "The receiver"} isn't running.`);
+  }
 }
 
 async function requestJson(path, options) {
@@ -154,16 +167,6 @@ export function buildAnnotationPayload() {
     },
     comment
   };
-}
-
-export function postAnnotation() {
-  return requestJson("/annotations", {
-    method: "POST",
-    body: JSON.stringify({
-      annotation: buildAnnotationPayload(),
-      assets: state.attachments.map(({ name, mime, dataUrl }) => ({ name, mime, dataUrl }))
-    })
-  });
 }
 
 export async function getAnnotationsForRoute() {

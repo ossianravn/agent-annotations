@@ -36,7 +36,8 @@ import {
   updateSendEnabled,
   withControlFeedback
 } from "./feedback.js";
-import { fillSettingsForm, postAnnotation, saveSettings, testConnection } from "./receiver.js";
+import { fillSettingsForm, saveSettings, testConnection } from "./receiver.js";
+import { outboxIsLarge, outcomeMessage, queueAnnotation, requestSync } from "./outbox.js";
 import { discardDraft, scheduleDraftSave } from "./drafts.js";
 import { bindTabs } from "./tabs.js";
 import { refreshRoute } from "./projects.js";
@@ -176,12 +177,17 @@ async function sendAnnotation() {
   await runControl($("send"), async () => {
     await refreshActiveTabInfo();
     await Promise.all([refreshSelectedElementGeometry({ allowStored: true }), refreshLayout()]);
-    await postAnnotation();
-    // The annotation is stored now: a cleanup failure must not read as a failed
-    // save, or the user would send it again.
+    const item = await queueAnnotation();
+    // The annotation is safe in the browser now: a cleanup failure must not
+    // read as a failed save, or the user would save it again.
     const reset = await resetComposerAfterSend();
+    const outcome = (await requestSync())[item.id];
     await refreshList();
-    announceAction(reset ? "Annotation saved." : "Annotation saved, but its draft could not be cleared.");
+    const notes = [
+      reset ? null : "Its draft could not be cleared.",
+      await outboxIsLarge() ? "Unsent annotations now use over 200 MB in the browser." : null
+    ].filter(Boolean);
+    announceAction([outcomeMessage(outcome, item), ...notes].join(" "), outcome?.state === "failed" ? "error" : "info");
   }, { busyText: "Saving…", okText: "Saved", errorText: "Failed", restoreDisabled: false });
   state.isSending = false;
   updateSendEnabled();

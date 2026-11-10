@@ -79,6 +79,15 @@ now runs on that port), the panel shows **Other repo running** and pauses
 saving until you move the page or start the right receiver, so annotations
 never land in the wrong repo. Manage projects and their pages under Settings.
 
+### Saving while the repo is offline
+
+Saving never needs a running receiver. Every annotation is stored in the
+browser first and then sent to its repo: immediately when the receiver is
+running, otherwise as soon as it is (the extension checks every minute and
+whenever the panel opens). Waiting annotations show in the Open tab with
+Retry and Discard. Annotations on a page that isn't in a project wait until
+you add the page to one.
+
 ### Desktop width
 
 Chrome's side panel narrows the page, which can switch it to a tablet layout.

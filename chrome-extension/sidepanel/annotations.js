@@ -4,6 +4,7 @@ import { renderOpenCount } from "./tabs.js";
 import { closeAssetPreview } from "./attachments.js";
 import { clearSavedAttachmentPreviews, renderSavedAttachments } from "./saved_attachments.js";
 import { getAnnotationsForRoute, markResolved, updateAnnotationComment } from "./receiver.js";
+import { discardLocal, loadLocalAnnotations, localCard, requestSync } from "./outbox.js";
 
 let detailSessionId = 0;
 let activeCommentSave = null;
@@ -50,20 +51,41 @@ function listItem(annotation) {
   return item;
 }
 
+const localHandlers = {
+  onRetry: async () => {
+    await requestSync();
+    await refreshList();
+  },
+  onDiscard: async (item) => {
+    if (await discardLocal(item)) await refreshList();
+  }
+};
+
+// Unsent annotations come first and stay visible when the repo is unreachable,
+// which is exactly when they matter.
 export function renderList() {
   const root = $("list");
   root.replaceChildren();
-  renderOpenCount(state.openAnnotations.length);
-  if (!state.openAnnotations.length) {
+  const local = state.localAnnotations.map((item) => localCard(item, localHandlers));
+  const total = local.length + state.openAnnotations.length;
+  renderOpenCount(state.listError && !state.listError.offline && !local.length ? null : total);
+  root.append(...local, ...state.openAnnotations.map(listItem));
+  if (state.listError) {
+    // Offline is an expected state, so it reads as a note rather than an error.
+    const error = document.createElement("p");
+    error.className = state.listError.offline ? "empty" : "inline-error";
+    error.textContent = state.listError.offline
+      ? `${state.listError.message} Saved annotations show here when it is.`
+      : `Could not load saved annotations: ${state.listError.message}`;
+    root.appendChild(error);
+  } else if (!total) {
     const empty = document.createElement("p");
     empty.className = "empty";
     const title = document.createElement("strong");
     title.textContent = "No open annotations on this page.";
     empty.append(title, "Saved annotations stay here until they are resolved.");
     root.appendChild(empty);
-    return;
   }
-  root.append(...state.openAnnotations.map(listItem));
 }
 
 export async function refreshList() {
@@ -72,20 +94,16 @@ export async function refreshList() {
   const list = $("list");
   list.setAttribute("aria-busy", "true");
   // Keep the current cards in place while refreshing so the list does not jump.
-  if (!state.openAnnotations.length) setListMessage("Loading…");
-  try {
-    const annotations = await getAnnotationsForRoute();
-    if (requestId !== listRequestId) return;
-    state.openAnnotations = annotations;
-    renderList();
-  } catch (error) {
-    if (requestId !== listRequestId) return;
-    state.openAnnotations = [];
-    renderOpenCount(null);
-    setListMessage(`Could not load annotations: ${error?.message || error}`, "inline-error");
-  } finally {
-    if (requestId === listRequestId) list.removeAttribute("aria-busy");
-  }
+  if (!state.openAnnotations.length && !state.localAnnotations.length) setListMessage("Loading…");
+  const [saved, local] = await Promise.allSettled([getAnnotationsForRoute(), loadLocalAnnotations()]);
+  if (requestId !== listRequestId) return;
+  state.openAnnotations = saved.status === "fulfilled" ? saved.value : [];
+  state.localAnnotations = local.status === "fulfilled" ? local.value : [];
+  state.listError = saved.status === "rejected"
+    ? { message: saved.reason?.message || String(saved.reason), offline: Boolean(saved.reason?.offline) }
+    : null;
+  renderList();
+  list.removeAttribute("aria-busy");
 }
 
 export function openDetail(annotation) {
