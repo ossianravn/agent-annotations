@@ -89,21 +89,12 @@ pnpm dlx agent-annotations start
 
 ```mermaid
 flowchart LR
-  subgraph Browser["Chrome"]
-    A["Side panel<br>annotate an element"]
-    F["Board<br>review cards"]
-  end
-  subgraph Repo["Your repository"]
-    B["Receiver<br>127.0.0.1:8787"]
-    C[".agent-annotations/cards/"]
-  end
-  D["Coding agent<br>Codex, Claude Code, …"]
-  A -- "Send to agent" --> B
-  B --> C
-  C -- "next / claim" --> D
+  A["Side panel"] -- "Send to agent" --> B["Receiver"]
+  B -- writes --> C[("Cards in<br>your repo")]
+  C -- "next" --> D["Coding agent"]
   D -- "handback" --> C
-  C -- "live updates" --> F
-  F -- "Mark done / Reply" --> B
+  C -- "live updates" --> E["Board"]
+  E -- "Mark done<br>or reply" --> B
 ```
 
 - The **extension** captures the element (selectors, test IDs, text, size and
@@ -126,19 +117,12 @@ Every annotation becomes a card with a status, so it is always clear who acts
 next.
 
 ```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> Draft: Save draft
-  [*] --> Ready: Send to agent
-  Draft --> Ready: you
-  Ready --> InProgress: agent claims
-  InProgress --> Waiting: agent hands back
-  Waiting --> Ready: you reply
-  Waiting --> Done: you mark done
-  Waiting --> WontDo: you close
-  InProgress: In progress
-  Waiting: Waiting on you
-  WontDo: Won't do
+flowchart LR
+  Draft --> Ready["Ready for agent"]
+  Ready -- "agent claims" --> Progress["In progress"]
+  Progress -- "agent hands back" --> Waiting["Waiting on you"]
+  Waiting -- "you reply" --> Ready
+  Waiting -- "you close" --> Done["Done or<br>Won't do"]
 ```
 
 | Status | Meaning |
