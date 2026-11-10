@@ -16,6 +16,7 @@ import {
 } from "./journey_support.mjs";
 import { FINAL_SAVED_COMMENT, verifySavedAnnotationDetail } from "./saved_annotation_journey.mjs";
 import { verifyDesktopWidthToggle, verifyZoomRestoredOnPanelClose } from "./desktop_width_journey.mjs";
+import { verifyProjectRouting } from "./projects_journey.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const extensionPath = path.join(root, "chrome-extension");
@@ -104,6 +105,7 @@ try {
     "receiver connection"
   );
   await chrome.command("Runtime.evaluate", { expression: "document.querySelector('#settingsDialog').close()" }, panelSession);
+  await verifyProjectRouting(chrome, panelSession, path.basename(receiverRepo));
 
   await click(chrome, panelSession, "#annotateToggle");
   await waitForEvaluation(

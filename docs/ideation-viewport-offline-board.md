@@ -331,6 +331,8 @@ Answer: Yes, sometimes, and probably more like in the future the way things are 
 
 ## Suggested order of work
 
+Progress: step 1 shipped in v0.4.3, step 2 in v0.4.4.
+
 1. **Layout metadata, plus the zoom-compensation switch.** Small, and it
    answers the readability question with real use.
 2. **Projects.** `projectId` in the receiver, a project list in Settings, URL

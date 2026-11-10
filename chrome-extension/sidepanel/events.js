@@ -39,6 +39,14 @@ import {
 import { fillSettingsForm, postAnnotation, saveSettings, testConnection } from "./receiver.js";
 import { discardDraft, scheduleDraftSave } from "./drafts.js";
 import { bindTabs } from "./tabs.js";
+import { refreshRoute } from "./projects.js";
+import { renderProjectList } from "./project_settings.js";
+
+// The list comes from the page's project, so the route must be known first.
+export async function refreshPage() {
+  await refreshRoute();
+  await refreshList();
+}
 import { refreshLayout } from "./desktop_width.js";
 
 async function runControl(control, task, options) {
@@ -55,6 +63,7 @@ function bindSettings() {
     if ($("settingsDialog").open) return;
     // Edits abandoned by closing without Save must not linger in the form.
     fillSettingsForm();
+    renderProjectList();
     $("settingsHint").textContent = "";
     $("settingsDialog").showModal();
   });
@@ -69,12 +78,12 @@ function bindSettings() {
   $("saveSettings").addEventListener("click", () => runControl($("saveSettings"), async () => {
     await saveSettings();
     $("settingsHint").textContent = "Settings saved.";
-    await testConnection();
+    await refreshPage();
   }, { busyText: "Saving…", okText: "Saved", errorText: "Not saved" }));
 
   $("testConn").addEventListener("click", () => runControl($("testConn"), async () => {
-    await testConnection({ requestPermission: true, useForm: true, throwOnFail: true });
-    $("settingsHint").textContent = "Connection verified.";
+    const health = await testConnection({ requestPermission: true });
+    $("settingsHint").textContent = health.name ? `Connected to ${health.name}.` : "Connection verified.";
   }, { busyText: "Testing…", okText: "Connected", errorText: "Failed" }));
 }
 
@@ -210,7 +219,7 @@ export function bindUI() {
   bindTabs();
   $("refreshList").addEventListener("click", async () => {
     await refreshActiveTabInfo();
-    await refreshList();
+    await refreshPage();
   });
   setSeverity(state.severity);
   renderSelectedElement();

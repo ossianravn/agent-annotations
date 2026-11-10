@@ -65,6 +65,27 @@ edit its comment, copy it as a prompt, preview image attachments, or resolve it.
 Image attachments appear as square thumbnails; selecting one opens the full
 image with its stored path below it.
 
+### Projects
+
+Each repo is a project, identified by the receiver (not by the page's URL), so
+`localhost:3000`, a staging URL and your live domain can all belong to the
+same repo. The first time you open a page that isn't in a project while a
+receiver is running, the panel offers **Add page** to put it in that repo. The
+panel header always shows the page's project. `localhost`, `127.0.0.1` and
+`[::1]` count as the same host.
+
+If a different repo's receiver answers for a page (for example, another app
+now runs on that port), the panel shows **Other repo running** and pauses
+saving until you move the page or start the right receiver, so annotations
+never land in the wrong repo. Manage projects and their pages under Settings.
+
+### Desktop width
+
+Chrome's side panel narrows the page, which can switch it to a tablet layout.
+Turn on **Desktop width** to zoom the page out so it keeps the width it had
+without the panel. The zoom is undone when you turn it off or close the panel.
+Every annotation records the viewport width and zoom it was made at.
+
 What `setup` does:
 
 - Installs the skill/instructions into the repo (so your agent will read `.agent-annotations/`)
@@ -136,7 +157,9 @@ pnpm dlx agent-annotations-receiver --port 8787
 On first run it:
 - prints a token
 - writes `.agent-annotations/token.txt`
-- writes `.agent-annotations/config.json` with the receiver base URL
+- writes `.agent-annotations/config.json` with the receiver base URL and the
+  repo's project ID and name (the ID is kept across restarts; edit `name` to
+  change how the extension shows the repo)
 
 Paste the token into the extension’s connection settings.
 

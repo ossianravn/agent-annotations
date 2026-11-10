@@ -135,6 +135,51 @@ button.detail-attachment:hover {
   color: var(--err);
 }
 
+.project-list {
+  display: grid;
+  gap: var(--space-3);
+  max-inline-size: 26rem;
+}
+
+.project-row {
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--hairline);
+}
+
+.project-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.project-title {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.project-pages {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-page {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.project-origin {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
 .dialog-asset {
   inline-size: min(53.75rem, calc(100vw - 1rem));
 }

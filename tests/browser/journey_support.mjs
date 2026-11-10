@@ -54,6 +54,7 @@ export async function click(chrome, sessionId, selector) {
     expression: `(() => {
     const element = document.querySelector(${JSON.stringify(selector)});
     if (!element) throw new Error("Missing click target: ${selector}");
+    element.scrollIntoView({ block: "center", inline: "nearest" });
     const rect = element.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`,

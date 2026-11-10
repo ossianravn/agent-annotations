@@ -208,7 +208,7 @@ function pathId(segment) {
   }
 }
 
-async function handleRequest(request, response, token) {
+async function handleRequest(request, response, token, project) {
   if (request.method === "OPTIONS") {
     response.writeHead(204, corsHeaders);
     response.end();
@@ -216,7 +216,13 @@ async function handleRequest(request, response, token) {
   }
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
   if (request.method === "GET" && url.pathname === "/health") {
-    sendJson(response, 200, { ok: true, repoRoot, receiverBaseUrl: baseUrl });
+    sendJson(response, 200, {
+      ok: true,
+      projectId: project.projectId,
+      name: project.name,
+      repoRoot,
+      receiverBaseUrl: baseUrl
+    });
     return;
   }
   if (request.method === "GET" && url.pathname === "/annotations") {
@@ -266,12 +272,32 @@ async function handleRequest(request, response, token) {
   throw new RequestError(404, "Not found.");
 }
 
+// The project ID identifies this repo to the extension, so it must survive
+// restarts and reinstalls; the base URL is refreshed on every start.
+function loadProjectConfig() {
+  let saved = {};
+  try {
+    saved = JSON.parse(fs.readFileSync(files.config, "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") console.warn(`Rewriting unreadable ${files.config}: ${error.message}`);
+  }
+  const config = {
+    ...saved,
+    projectId: typeof saved.projectId === "string" && saved.projectId ? saved.projectId : `prj_${crypto.randomUUID()}`,
+    name: typeof saved.name === "string" && saved.name.trim() ? saved.name.trim() : path.basename(repoRoot),
+    receiverBaseUrl: baseUrl,
+    tokenPath: ".agent-annotations/token.txt"
+  };
+  fs.writeFileSync(files.config, `${JSON.stringify(config, null, 2)}\n`);
+  return config;
+}
+
 function main() {
   ensureDataDirs();
   const token = loadOrCreateToken();
-  fs.writeFileSync(files.config, `${JSON.stringify({ receiverBaseUrl: baseUrl, tokenPath: ".agent-annotations/token.txt" }, null, 2)}\n`);
+  const project = loadProjectConfig();
   const server = http.createServer((request, response) => {
-    handleRequest(request, response, token).catch((error) => {
+    handleRequest(request, response, token, project).catch((error) => {
       if (!response.headersSent) sendJson(response, error.status || 500, { ok: false, error: error.message });
       else response.destroy(error);
     });
@@ -285,7 +311,7 @@ function main() {
     process.exit(1);
   });
   server.listen(port, host, () => {
-    console.log(`Agent Annotations Receiver\nRepo root: ${repoRoot}`);
+    console.log(`Agent Annotations Receiver\nProject: ${project.name} (${project.projectId})\nRepo root: ${repoRoot}`);
     console.log(`Token (paste into extension): ${token}`);
     console.log(`Listening on http://${host}:${port}\nSuggested base URL for tools: ${baseUrl}`);
   });

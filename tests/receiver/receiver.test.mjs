@@ -237,6 +237,33 @@ test("receiver updates comments and serves authenticated attachment bytes", asyn
   }
 });
 
+test("receiver keeps one project identity across restarts", async () => {
+  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-project-test-"));
+  const startHealth = async () => {
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const receiver = spawn(process.execPath, [
+      receiverScript, "--repo", temporaryRoot, "--host", "127.0.0.1", "--port", String(port)
+    ], { cwd: root, env: { ...process.env, ANNOTATION_TOKEN: token }, stdio: "ignore" });
+    try {
+      await waitForReceiver(baseUrl);
+      return await (await fetch(`${baseUrl}/health`)).json();
+    } finally {
+      await stopProcess(receiver);
+    }
+  };
+
+  try {
+    const first = await startHealth();
+    assert.match(first.projectId, /^prj_/);
+    assert.equal(first.name, path.basename(temporaryRoot));
+    const second = await startHealth();
+    assert.equal(second.projectId, first.projectId);
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test("standalone and scaffold receiver runtimes remain identical", async () => {
   const runtimeFiles = [
     "agent-annotations-receiver.js",

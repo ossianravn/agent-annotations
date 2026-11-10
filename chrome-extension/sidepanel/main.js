@@ -1,12 +1,13 @@
-import { refreshList } from "./annotations.js";
 import {
   bindAnnotationMessages,
   bindLockedTabWatchers,
   restoreAnnotationMode
 } from "./annotation_session.js";
-import { bindUI } from "./events.js";
+import { bindUI, refreshPage } from "./events.js";
 import { announceAction } from "./feedback.js";
-import { loadSettings, testConnection } from "./receiver.js";
+import { loadSettings } from "./receiver.js";
+import { loadProjectsIntoState, onProjectsChanged } from "./projects.js";
+import { renderProjectList } from "./project_settings.js";
 import { getActiveTab, refreshActiveTabInfo, renderSelectedElement, state } from "./shared.js";
 import { renderAttachments } from "./attachments.js";
 import { bindDraftLifecycle, restoreDraft } from "./drafts.js";
@@ -20,21 +21,25 @@ async function restoreComposer(announce = false) {
 }
 
 async function main() {
-  await Promise.all([loadSettings(), loadDesktopWidthPreference()]);
+  await Promise.all([loadSettings(), loadDesktopWidthPreference(), loadProjectsIntoState()]);
+  onProjectsChanged(async () => {
+    await refreshPage();
+    renderProjectList();
+  });
   bindAnnotationMessages();
   const openingTab = await getActiveTab();
   state.lockedTabId = openingTab?.id || null;
   await refreshActiveTabInfo();
   await restoreComposer(true);
   bindLockedTabWatchers({
-    refreshList,
+    refreshList: refreshPage,
     restoreComposer: () => restoreComposer(false),
     syncLayout: syncDesktopWidth
   });
   bindUI();
   bindDesktopWidth();
   bindDraftLifecycle();
-  await Promise.all([testConnection(), refreshList(), syncDesktopWidth()]);
+  await Promise.all([refreshPage(), syncDesktopWidth()]);
   await restoreAnnotationMode();
 }
 

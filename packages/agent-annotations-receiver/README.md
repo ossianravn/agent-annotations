@@ -12,6 +12,10 @@ pnpm dlx agent-annotations-receiver --port 8787
 
 The Chrome extension uses these receiver endpoints for saved annotations:
 
+- `GET /health` reports `projectId` and `name`, which identify the repo. The
+  ID is generated once and kept in `.agent-annotations/config.json`; the
+  extension uses it to make sure a page's annotations go to the right repo.
+
 - `GET /annotations?status=open&routeKey=…&limit=50` lists annotations.
 - `PATCH /annotations/:id` with `{ "comment": "…" }` edits an unresolved
   annotation comment and records `updatedAt`.

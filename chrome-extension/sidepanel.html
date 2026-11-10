@@ -13,7 +13,10 @@
   <body class="app">
     <h1 class="sr-only">Agent Annotations</h1>
     <header class="header">
-      <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">Offline</span>
+      <div class="header-status">
+        <span id="projectName" class="project-name" title="Project for this page">No project</span>
+        <span id="connStatusLabel" class="conn-status is-err" role="status" aria-live="polite" title="Receiver connection">Offline</span>
+      </div>
       <div class="header-actions">
         <label class="mode-switch" title="Annotate mode (Ctrl+Shift+Y)">
           <span class="mode-label">Annotate</span>
@@ -181,7 +184,8 @@
         <div class="dialog-body">
           <div class="field">
             <label class="field-label" for="serverUrl">Receiver URL</label>
-            <input id="serverUrl" name="serverUrl" class="field-input field-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:8787">
+            <input id="serverUrl" name="serverUrl" class="field-input field-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:8787" aria-describedby="serverUrlHint">
+            <p class="help" id="serverUrlHint">Where the panel looks for the repo you're running.</p>
           </div>
           <div class="field">
             <label class="field-label" for="token">Token</label>
@@ -189,7 +193,11 @@
               <input id="token" name="token" class="field-input field-token" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="tokenHint">
               <button id="showToken" class="btn" type="button" aria-controls="token"><span class="btn-text">Show</span><span class="sr-only"> token</span></button>
             </div>
-            <p class="help" id="tokenHint">Printed by the receiver and saved in .agent-annotations/token.txt.</p>
+            <p class="help" id="tokenHint">Tried first when a new repo is found. Printed by the receiver and saved in .agent-annotations/token.txt.</p>
+          </div>
+          <div class="field">
+            <h3 class="field-label">Projects</h3>
+            <div id="projectList" class="project-list"></div>
           </div>
           <p class="help" id="settingsHint" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
@@ -202,6 +210,7 @@
     </main>
 
     <footer class="footer">
+      <section id="projectPrompt" class="prompt" aria-label="Project for this page" hidden></section>
       <p id="actionStatus" class="action-status" role="status" aria-live="polite" aria-atomic="true"></p>
       <button id="send" class="send-btn" type="button">
         <span class="send-text">Save annotation</span>

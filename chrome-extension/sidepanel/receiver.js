@@ -4,7 +4,6 @@ import {
   routeKeyFromUrl,
   state
 } from "./shared.js";
-import { setConnectionStatus } from "./feedback.js";
 
 const REQUEST_TIMEOUT_MS = 5000;
 
@@ -67,52 +66,67 @@ export async function saveSettings() {
   fillSettingsForm();
 }
 
-function formSettings() {
-  return {
-    serverUrl: normalizeServerUrl($("serverUrl").value || state.settings.serverUrl),
-    token: $("token").value.trim()
-  };
+// Returns the receiver's /health body, or null when nothing usable answers.
+export async function probeReceiver(receiverUrl) {
+  try {
+    await ensureReceiverPermission(receiverUrl, false);
+    const response = await fetchWithTimeout(`${receiverUrl}/health`);
+    const health = await responseJson(response);
+    return response.ok && health.ok ? health : null;
+  } catch {
+    return null;
+  }
 }
 
-function connectionFailure(status, message) {
-  const error = new Error(message);
-  error.connectionStatus = status;
-  return error;
+// "ok" | "unauthorized" | "missing-token" | "offline". An empty POST is
+// rejected as a bad request only after the token has been accepted.
+export async function checkToken(receiverUrl, token) {
+  if (!token) return "missing-token";
+  try {
+    const response = await fetchWithTimeout(`${receiverUrl}/annotations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Annotation-Token": token },
+      body: "{}"
+    });
+    if (response.status === 401) return "unauthorized";
+    return response.status === 400 || response.ok ? "ok" : "offline";
+  } catch {
+    return "offline";
+  }
 }
 
 export async function testConnection(options = {}) {
-  const { requestPermission = false, useForm = false, throwOnFail = false } = options;
-  const settings = useForm ? formSettings() : state.settings;
-  try {
-    await ensureReceiverPermission(settings.serverUrl, requestPermission);
-    const healthResponse = await fetchWithTimeout(`${settings.serverUrl}/health`);
-    const health = await responseJson(healthResponse);
-    if (!healthResponse.ok || !health.ok) {
-      throw connectionFailure("offline", "Receiver is not reachable.");
-    }
-    if (!settings.token) throw connectionFailure("missing-token", "Token is missing.");
-
-    const authResponse = await fetchWithTimeout(`${settings.serverUrl}/annotations`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Annotation-Token": settings.token
-      },
-      body: "{}"
-    });
-    if (authResponse.status === 401) throw connectionFailure("unauthorized", "Token is invalid.");
-    if (authResponse.status !== 400 && !authResponse.ok) {
-      throw connectionFailure("offline", `Receiver check failed (${authResponse.status}).`);
-    }
-    setConnectionStatus("ok");
-    return true;
-  } catch (error) {
-    const status = error.connectionStatus || "offline";
-    setConnectionStatus(status);
-    if (throwOnFail) throw error;
-    return false;
-  }
+  const serverUrl = normalizeServerUrl($("serverUrl").value || state.settings.serverUrl);
+  await ensureReceiverPermission(serverUrl, Boolean(options.requestPermission));
+  const health = await probeReceiver(serverUrl);
+  if (!health) throw new Error("Receiver is not reachable.");
+  const status = await checkToken(serverUrl, $("token").value.trim());
+  if (status === "missing-token") throw new Error("Token is missing.");
+  if (status === "unauthorized") throw new Error("Token is invalid.");
+  if (status !== "ok") throw new Error("Receiver check failed.");
+  return health;
 }
+
+// Every request goes to the receiver of the current page's project.
+async function request(path, options = {}) {
+  const target = state.target;
+  if (!target) throw new Error(state.targetBlockedReason || "No receiver is reachable for this page.");
+  const headers = { "X-Annotation-Token": target.token, ...options.headers };
+  if (options.body) headers["Content-Type"] = "application/json";
+  return fetchWithTimeout(`${target.receiverUrl}${path}`, { ...options, headers });
+}
+
+async function requestJson(path, options) {
+  const response = await request(path, options);
+  const data = await responseJson(response);
+  if (!response.ok || data.ok === false) throw new Error(data.error || `Receiver error (${response.status}).`);
+  return data;
+}
+
+const annotationPath = (annotation) => {
+  if (!annotation?.id) throw new Error("Annotation ID is missing.");
+  return `/annotations/${encodeURIComponent(annotation.id)}`;
+};
 
 export function buildAnnotationPayload() {
   if (!state.activeUrl) throw new Error("No active URL is available.");
@@ -142,63 +156,35 @@ export function buildAnnotationPayload() {
   };
 }
 
-export async function postAnnotation() {
-  const response = await fetchWithTimeout(`${state.settings.serverUrl}/annotations`, {
+export function postAnnotation() {
+  return requestJson("/annotations", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Annotation-Token": state.settings.token
-    },
     body: JSON.stringify({
       annotation: buildAnnotationPayload(),
       assets: state.attachments.map(({ name, mime, dataUrl }) => ({ name, mime, dataUrl }))
     })
   });
-  const data = await responseJson(response);
-  if (!response.ok || !data.ok) throw new Error(data.error || `Receiver error (${response.status}).`);
-  return data;
 }
 
 export async function getAnnotationsForRoute() {
   if (!state.routeKey) return [];
-  if (!state.settings.token) throw new Error("add the receiver token in Settings.");
-  const url = new URL(`${state.settings.serverUrl}/annotations`);
-  url.searchParams.set("status", "open");
-  url.searchParams.set("routeKey", state.routeKey);
-  url.searchParams.set("limit", "50");
-  const response = await fetchWithTimeout(url, { headers: { "X-Annotation-Token": state.settings.token } });
-  const data = await responseJson(response);
-  if (!response.ok) throw new Error(data.error || `Receiver error (${response.status}).`);
+  const query = new URLSearchParams({ status: "open", routeKey: state.routeKey, limit: "50" });
+  const data = await requestJson(`/annotations?${query}`);
   if (!Array.isArray(data.annotations)) throw new Error("Receiver returned an invalid annotation list.");
   return data.annotations;
 }
 
 export async function updateAnnotationComment(annotation, comment) {
-  if (!annotation?.id) throw new Error("Annotation ID is missing.");
-  const response = await fetchWithTimeout(
-    `${state.settings.serverUrl}/annotations/${encodeURIComponent(annotation.id)}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Annotation-Token": state.settings.token
-      },
-      body: JSON.stringify({ comment })
-    }
-  );
-  const data = await responseJson(response);
-  if (!response.ok || !data.ok || !data.annotation) {
-    throw new Error(data.error || `Receiver error (${response.status}).`);
-  }
+  const data = await requestJson(annotationPath(annotation), {
+    method: "PATCH",
+    body: JSON.stringify({ comment })
+  });
+  if (!data.annotation) throw new Error("Receiver returned no annotation.");
   return data.annotation;
 }
 
 export async function fetchAnnotationAttachment(annotation, index) {
-  if (!annotation?.id) throw new Error("Annotation ID is missing.");
-  const response = await fetchWithTimeout(
-    `${state.settings.serverUrl}/annotations/${encodeURIComponent(annotation.id)}/attachments/${index}`,
-    { headers: { "X-Annotation-Token": state.settings.token } }
-  );
+  const response = await request(`${annotationPath(annotation)}/attachments/${index}`);
   if (!response.ok) {
     const data = await responseJson(response);
     throw new Error(data.error || `Receiver error (${response.status}).`);
@@ -206,20 +192,9 @@ export async function fetchAnnotationAttachment(annotation, index) {
   return response.blob();
 }
 
-export async function markResolved(annotation) {
-  if (!annotation?.id) throw new Error("Annotation ID is missing.");
-  const response = await fetchWithTimeout(
-    `${state.settings.serverUrl}/annotations/${encodeURIComponent(annotation.id)}/status`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Annotation-Token": state.settings.token
-      },
-      body: JSON.stringify({ status: "resolved" })
-    }
-  );
-  const data = await responseJson(response);
-  if (!response.ok || !data.ok) throw new Error(data.error || `Receiver error (${response.status}).`);
-  return data;
+export function markResolved(annotation) {
+  return requestJson(`${annotationPath(annotation)}/status`, {
+    method: "POST",
+    body: JSON.stringify({ status: "resolved" })
+  });
 }
