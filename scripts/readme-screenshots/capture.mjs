@@ -97,20 +97,12 @@ try {
     document.querySelector('#token').value = ${JSON.stringify(token)};
   })()`);
   await click(chrome, panelSession, "#saveSettings");
-  await waitForEvaluation(chrome, panelSession, "document.querySelector('#connStatusLabel').textContent === 'Connected' && !document.querySelector('#projectPrompt').hidden", "add-page prompt");
+  // Until the new settings apply, the prompt may still offer a receiver on the
+  // default port (which can be another repo on this computer), so wait for ours.
+  await waitForEvaluation(chrome, panelSession, "document.querySelector('#connStatusLabel').textContent === 'Connected' && document.querySelector('#projectPrompt').textContent.includes('juniper-web') && !document.querySelector('#projectToken')", "add-page prompt");
   await evaluate(chrome, panelSession, "document.querySelector('#settingsDialog').close()");
-  // An Add page click right after saving settings can be lost to a re-render
-  // of the prompt, so try again until the page is in the project.
-  for (let attempt = 1; ; attempt += 1) {
-    await sleep(1000);
-    await evaluate(chrome, panelSession, "document.querySelector('#projectPrompt .btn-primary')?.click()");
-    try {
-      await waitForEvaluation(chrome, panelSession, "document.querySelector('#projectPrompt').hidden && document.querySelector('#projectName').textContent === 'juniper-web'", "page added to the project");
-      break;
-    } catch (error) {
-      if (attempt === 3) throw error;
-    }
-  }
+  await click(chrome, panelSession, "#projectPrompt .btn-primary");
+  await waitForEvaluation(chrome, panelSession, "document.querySelector('#projectPrompt').hidden && document.querySelector('#projectName').textContent === 'juniper-web'", "page added to the project");
 
   // Select the Team plan card, the one whose badge overlaps its name.
   await click(chrome, panelSession, "#annotateToggle");

@@ -7,6 +7,17 @@ export async function verifyProjectRouting(chrome, panelSession, repoName) {
   // A page outside every project is offered to the repo that is running.
   await waitForEvaluation(chrome, panelSession, `!document.querySelector('#projectPrompt').hidden && ${promptText}.includes(${JSON.stringify(repoName)})`, "add-page prompt");
   assert.equal(await evaluate(chrome, panelSession, "document.querySelector('#projectName').textContent"), "No project");
+  // Page loads and Save settings refresh the route; an unchanged prompt stays as it is.
+  const kept = await evaluate(chrome, panelSession, `(async () => {
+    const before = document.querySelector('#projectPrompt .btn-primary');
+    before.closest('#projectPrompt').querySelector('.prompt-error').textContent = 'Shown error';
+    await (await import(chrome.runtime.getURL('sidepanel/projects.js'))).refreshRoute();
+    const prompt = document.querySelector('#projectPrompt');
+    const result = prompt.querySelector('.btn-primary') === before && prompt.querySelector('.prompt-error').textContent === 'Shown error';
+    prompt.querySelector('.prompt-error').textContent = '';
+    return result;
+  })()`);
+  assert.equal(kept, true, "a route refresh must not rebuild an unchanged prompt");
   await click(chrome, panelSession, "#projectPrompt .btn-primary");
   await waitForEvaluation(chrome, panelSession, `document.querySelector('#projectName').textContent === ${JSON.stringify(repoName)} && document.querySelector('#projectPrompt').hidden`, "page added to project");
 

@@ -49,8 +49,25 @@ function copyFor(prompt) {
   ];
 }
 
+// The question the prompt asks; a refresh that asks the same one keeps the prompt.
+function promptKey(prompt) {
+  if (!prompt) return null;
+  const { kind, origin, needsToken, running, project } = prompt;
+  return JSON.stringify([kind, origin, Boolean(needsToken), running?.id, running?.name, running?.receiverUrl, project?.id, project?.name]);
+}
+
+let shown = { key: null, prompt: null };
+
 export function renderProjectPrompt(prompt, handlers) {
   const root = $("projectPrompt");
+  const key = promptKey(prompt);
+  // The route refreshes on every page load and after Save settings. Rebuilding
+  // an unchanged prompt would erase a token being typed and any error shown.
+  if (key && key === shown.key && root.childElementCount) {
+    shown.prompt = prompt;
+    return;
+  }
+  shown = { key, prompt };
   root.replaceChildren();
   root.hidden = !prompt;
   if (!prompt) return;
@@ -67,8 +84,10 @@ export function renderProjectPrompt(prompt, handlers) {
     const buttons = actions.querySelectorAll("button");
     buttons.forEach((candidate) => { candidate.disabled = true; });
     error.textContent = "";
+    // The latest refresh's prompt, which may carry a newer saved token.
+    const current = shown.prompt;
     try {
-      await handler({ ...prompt, token: token ? token.input.value.trim() : prompt.token });
+      await handler({ ...current, token: token ? token.input.value.trim() : current.token });
     } catch (failure) {
       error.textContent = failure?.message || String(failure);
       buttons.forEach((candidate) => { candidate.disabled = false; });
