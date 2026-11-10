@@ -119,6 +119,7 @@ export function buildAnnotationPayload() {
   if (!state.selectedElement) throw new Error("Select an element first.");
   const comment = $("comment").value.trim();
   if (!comment) throw new Error("Add a comment first.");
+  const rect = state.selectedElement.rect || {};
 
   return {
     id: "",
@@ -129,6 +130,14 @@ export function buildAnnotationPayload() {
     severity: state.severity,
     tags: [],
     ...state.selectedElement,
+    // Which layout the comment is about: breakpoints follow the CSS viewport width.
+    layout: {
+      viewportWidth: rect.viewportW ?? state.layout?.width ?? null,
+      viewportHeight: rect.viewportH ?? null,
+      devicePixelRatio: rect.dpr ?? null,
+      zoom: state.layout?.zoom ?? null,
+      desktopWidth: state.desktopWidth
+    },
     comment
   };
 }

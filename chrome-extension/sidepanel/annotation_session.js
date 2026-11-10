@@ -103,14 +103,18 @@ export function bindAnnotationMessages() {
   });
 }
 
-export function bindLockedTabWatchers({ refreshList, restoreComposer }) {
+export function bindLockedTabWatchers({ refreshList, restoreComposer, syncLayout }) {
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (tabId !== state.lockedTabId || (!changeInfo.url && changeInfo.status !== "complete")) return;
     (async () => {
       if (changeInfo.url) await flushDraft();
       await refreshActiveTabInfo();
       if (changeInfo.url) await restoreComposer();
-      if (changeInfo.status === "complete") await restoreAnnotationMode();
+      if (changeInfo.status === "complete") {
+        // Chrome resets per-tab zoom on navigation.
+        await syncLayout();
+        await restoreAnnotationMode();
+      }
       await refreshList();
     })().catch((error) => console.warn("Failed to refresh the annotated tab:", error));
   });
@@ -125,6 +129,7 @@ export function bindLockedTabWatchers({ refreshList, restoreComposer }) {
       const tab = await getActiveTab();
       state.lockedTabId = tab?.id || null;
       await refreshActiveTabInfo();
+      await syncLayout();
       await restoreComposer();
       await restoreAnnotationMode();
       await refreshList();

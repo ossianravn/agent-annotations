@@ -10,6 +10,7 @@ import { loadSettings, testConnection } from "./receiver.js";
 import { getActiveTab, refreshActiveTabInfo, renderSelectedElement, state } from "./shared.js";
 import { renderAttachments } from "./attachments.js";
 import { bindDraftLifecycle, restoreDraft } from "./drafts.js";
+import { bindDesktopWidth, loadDesktopWidthPreference, syncDesktopWidth } from "./desktop_width.js";
 
 async function restoreComposer(announce = false) {
   const restored = await restoreDraft();
@@ -19,7 +20,7 @@ async function restoreComposer(announce = false) {
 }
 
 async function main() {
-  await loadSettings();
+  await Promise.all([loadSettings(), loadDesktopWidthPreference()]);
   bindAnnotationMessages();
   const openingTab = await getActiveTab();
   state.lockedTabId = openingTab?.id || null;
@@ -27,11 +28,13 @@ async function main() {
   await restoreComposer(true);
   bindLockedTabWatchers({
     refreshList,
-    restoreComposer: () => restoreComposer(false)
+    restoreComposer: () => restoreComposer(false),
+    syncLayout: syncDesktopWidth
   });
   bindUI();
+  bindDesktopWidth();
   bindDraftLifecycle();
-  await Promise.all([testConnection(), refreshList()]);
+  await Promise.all([testConnection(), refreshList(), syncDesktopWidth()]);
   await restoreAnnotationMode();
 }
 

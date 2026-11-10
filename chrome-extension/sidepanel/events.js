@@ -39,6 +39,7 @@ import {
 import { fillSettingsForm, postAnnotation, saveSettings, testConnection } from "./receiver.js";
 import { discardDraft, scheduleDraftSave } from "./drafts.js";
 import { bindTabs } from "./tabs.js";
+import { refreshLayout } from "./desktop_width.js";
 
 async function runControl(control, task, options) {
   try {
@@ -165,7 +166,7 @@ async function sendAnnotation() {
   updateSendEnabled();
   await runControl($("send"), async () => {
     await refreshActiveTabInfo();
-    await refreshSelectedElementGeometry({ allowStored: true });
+    await Promise.all([refreshSelectedElementGeometry({ allowStored: true }), refreshLayout()]);
     await postAnnotation();
     // The annotation is stored now: a cleanup failure must not read as a failed
     // save, or the user would send it again.

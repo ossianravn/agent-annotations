@@ -7,6 +7,7 @@ import { captureVisibleTab } from "./background/capture.js";
 import { configureSidePanel, openPanelForTab } from "./background/panel.js";
 import { clearAnnotationSession } from "./shared/annotation_sessions.mjs";
 import { deleteDraftRecordsForTab } from "./shared/draft_store.mjs";
+import { forgetDesktopWidth, restoreDesktopWidth } from "./shared/desktop_width.mjs";
 
 function configure() {
   configureSidePanel().catch((error) => console.warn("Could not configure the side panel:", error));
@@ -26,9 +27,24 @@ chrome.commands.onCommand.addListener((command) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   Promise.all([
     clearAnnotationSession(tabId),
-    deleteDraftRecordsForTab(tabId)
+    deleteDraftRecordsForTab(tabId),
+    forgetDesktopWidth(tabId)
   ]).catch((error) => {
     console.warn(`Could not clear annotation data for closed tab ${tabId}:`, error);
+  });
+});
+
+// The panel holds a port and reports its tab; the port drops when the panel
+// closes or moves to another tab, which is when that tab's zoom goes back.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "sidepanel") return;
+  let tabId = null;
+  port.onMessage.addListener((message) => {
+    if (Number.isInteger(message?.tabId)) tabId = message.tabId;
+  });
+  port.onDisconnect.addListener(() => {
+    if (tabId == null) return;
+    restoreDesktopWidth(tabId).catch((error) => console.warn(`Could not restore zoom for tab ${tabId}:`, error));
   });
 });
 

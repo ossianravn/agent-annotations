@@ -199,6 +199,12 @@ export async function saveSelectedAnnotationComment() {
   }
 }
 
+function layoutLine(layout) {
+  if (!layout?.viewportWidth) return null;
+  const zoom = layout.zoom && layout.zoom !== 1 ? ` at ${Math.round(layout.zoom * 100)}% zoom` : "";
+  return `Layout: ${Math.round(layout.viewportWidth)}px wide viewport${zoom}`;
+}
+
 function annotationPrompt(annotation) {
   const primary = annotation.element?.primary || {};
   const alternates = (annotation.element?.alternates || [])
@@ -210,6 +216,7 @@ function annotationPrompt(annotation) {
     `Element primary: ${primary.type || ""}=${primary.value || ""}`,
     alternates ? `Alternates: ${alternates}` : null,
     annotation.element?.textHint ? `Text hint: ${annotation.element.textHint}` : null,
+    layoutLine(annotation.layout),
     annotation.comment ? `Comment: ${annotation.comment}` : null,
     annotation.attachments?.length
       ? `Attachments: ${annotation.attachments.map((attachment) => attachment.path).join(", ")}`

@@ -33,6 +33,7 @@ Resolved archive:
   },
 
   "rect": { "x": 812, "y": 422, "w": 96, "h": 36, "dpr": 1 },
+  "layout": { "viewportWidth": 1440, "viewportHeight": 900, "devicePixelRatio": 0.72, "zoom": 0.72, "desktopWidth": true },
 
   "comment": "Make this button disabled until form is dirty.",
 
@@ -45,4 +46,5 @@ Resolved archive:
 ## Notes
 - `routeKey` is `origin + pathname` (query/hash removed).
 - `rect` is viewport-relative in CSS pixels; `dpr` is devicePixelRatio at capture time.
+- `layout` says which layout the comment is about: `viewportWidth` is the CSS viewport width that media queries saw, and `zoom` is the page zoom. `desktopWidth: true` means the page was zoomed out so it kept its full width beside the extension panel. Older records have no `layout`.
 - Attachments are stored as files and referenced via repo-relative `path`.

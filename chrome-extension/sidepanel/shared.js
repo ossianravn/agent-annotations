@@ -4,6 +4,8 @@ export const $ = (id) => document.getElementById(id);
 
 export const state = {
   annotateEnabled: false,
+  desktopWidth: false,
+  layout: null,
   isSending: false,
   lockedTabId: null,
   activeTab: null,

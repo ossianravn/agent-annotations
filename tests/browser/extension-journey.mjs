@@ -15,6 +15,7 @@ import {
   waitForEvaluation
 } from "./journey_support.mjs";
 import { FINAL_SAVED_COMMENT, verifySavedAnnotationDetail } from "./saved_annotation_journey.mjs";
+import { verifyDesktopWidthToggle, verifyZoomRestoredOnPanelClose } from "./desktop_width_journey.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const extensionPath = path.join(root, "chrome-extension");
@@ -187,6 +188,9 @@ try {
   assert.doesNotMatch(resolved, /"comment":"Browser journey annotation"/);
   assert.match(resolved, /"severity":"bug"/);
   assert.match(resolved, /"attachments":\[/);
+  assert.match(resolved, /"layout":\{"viewportWidth":\d+/);
+
+  await verifyDesktopWidthToggle(chrome, panelSession, pageSession, startup.lockedTabId);
 
   const cleanupKey = await evaluate(chrome, panelSession, `(async () => {
     const shared = await import(chrome.runtime.getURL('sidepanel/shared.js'));
@@ -201,6 +205,7 @@ try {
   assert.equal(await evaluate(chrome, probeSession, `(async () => Boolean(
     await (await import(chrome.runtime.getURL('shared/draft_store.mjs'))).loadDraftRecord(${JSON.stringify(cleanupKey)})
   ))()`), true);
+  await verifyZoomRestoredOnPanelClose(chrome, panelSession, panelTarget.targetId, probeSession, startup.lockedTabId);
   await chrome.command("Target.closeTarget", { targetId: pageTargetId });
   await waitForEvaluation(chrome, probeSession, `(async () => !Boolean(
     await (await import(chrome.runtime.getURL('shared/draft_store.mjs'))).loadDraftRecord(${JSON.stringify(cleanupKey)})
