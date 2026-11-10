@@ -64,6 +64,10 @@ function cardElement(card) {
     button.classList.add("is-dragging");
   });
   button.addEventListener("dragend", () => button.classList.remove("is-dragging"));
+  // Keyboard equivalent of dragging: Alt+arrows move the card.
+  button.title = "Drag, or Alt + arrow keys, to move";
+  button.setAttribute("aria-keyshortcuts", "Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight");
+  button.addEventListener("keydown", (event) => moveWithKeys(event, card));
 
   const top = span("item-top", "");
   const type = span("type-label", typeLabel(card.severity));
@@ -76,8 +80,11 @@ function cardElement(card) {
       : card.status === "in_progress" ? card.claimedBy || ""
         : card.status === "wont_do" ? "Won't do" : "";
   if (detail) top.appendChild(span(`item-status${card.status === "waiting" ? " is-attention" : ""}`, detail));
+  if (card.tags?.length) top.appendChild(span("item-tags", card.tags.join(", ")));
+  const criteria = card.acceptance || [];
   const meta = [
     pagePath(card.url),
+    criteria.length ? `${criteria.filter((item) => item.done).length}/${criteria.length} done` : null,
     card.attachments?.length ? `${card.attachments.length} image${card.attachments.length === 1 ? "" : "s"}` : null,
     relativeTime(card.updatedAt || card.createdAt)
   ].filter(Boolean).join(" · ");
@@ -142,6 +149,23 @@ export async function moveCard(id, status, index) {
     announce(`Could not move the card: ${error?.message || error}`, "error");
     await board.reload();
   }
+}
+
+async function moveWithKeys(event, card) {
+  if (!event.altKey || !event.key.startsWith("Arrow")) return;
+  const status = columnOf(card);
+  const position = cardsIn(status).findIndex((candidate) => candidate.id === card.id);
+  const siblings = cardsIn(status, card.id).length;
+  const column = COLUMNS.indexOf(status);
+  let target = null;
+  if (event.key === "ArrowUp" && position > 0) target = [status, position - 1];
+  if (event.key === "ArrowDown" && position < siblings) target = [status, position + 1];
+  if (event.key === "ArrowLeft" && column > 0) target = [COLUMNS[column - 1], 0];
+  if (event.key === "ArrowRight" && column < COLUMNS.length - 1) target = [COLUMNS[column + 1], 0];
+  event.preventDefault();
+  if (!target) return;
+  await moveCard(card.id, ...target);
+  document.querySelector(`.board-card[data-id="${CSS.escape(card.id)}"]`)?.focus();
 }
 
 export function bindColumns({ onOpen }) {

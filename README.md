@@ -97,10 +97,15 @@ stops while holding a card, move the card back to Ready to release it.
 
 ### The board
 
-**Open board** (in the panel's Open tab) shows every card of the project in a
-full tab, one column per status. Drag cards between columns, or up and down to
-change the order agents pick Ready cards in. Search and filter by type, and use
-**New card** for ideas that don't belong to a page. Open a card to edit it,
+The board button in the panel header (next to Settings) opens every card of the
+project in a full tab, one column per status. Drag cards between columns, or up
+and down to change the order agents pick Ready cards in; with the keyboard,
+focus a card and press Alt + arrow keys. Search and filter by type, and use
+**New card** for ideas that don't belong to a page.
+
+Each card can carry a type, tags and a **Done when** checklist. Agents tick
+checklist items off as they meet them (`check <id> <number>` in the cards
+tool), so you can see what's left before you mark the card done. Open a card to edit it,
 answer an agent's question (**Reply and send back**), add images by pasting or
 with **Add image**, archive finished cards, or **Show on page** to open the
 page with the element outlined.

@@ -35,15 +35,18 @@ Use one stable `--agent` name for the whole session (for example `codex` or
 1. Claim the top card: `next --agent <name>`. It prints the card. "No cards are
    ready for an agent" means stop. You can hold 2 cards at once
    (`wipLimitPerAgent` in `.agent-annotations/config.json`).
-2. Read all of it: the comment, the page URL, the element locators, `layout`
-   (the viewport width the comment is about, which decides the breakpoint),
-   earlier `activity`, and the screenshots listed as attachments.
+2. Read all of it: the comment, the "Done when" acceptance criteria, the page
+   URL, the element locators, `layout` (the viewport width the comment is
+   about, which decides the breakpoint), earlier `activity`, and the
+   screenshots listed as attachments.
 3. Find the code (see Locators below), make the change, and check it.
 4. Leave notes while you work: `comment <id> "Found the race in useCartTotal"`.
    Notes also show the human you are still on the card.
 5. Hand it back, then take the next card:
-   - Finished: `handback <id> --review "What changed and how to check it" --link <commit or PR>`.
-     Cover every acceptance point in the comment.
+   - Finished: first tick each acceptance criterion you met with
+     `check <id> <number>` (numbers as `show` prints them), then
+     `handback <id> --review "What changed and how to check it" --link <commit or PR>`.
+     In the summary, say why any criterion is still unticked.
    - Blocked: `handback <id> --question "One concrete question"`. Don't guess
      at product decisions.
 
@@ -69,6 +72,7 @@ capture before and after screenshots. Otherwise, give manual steps.
 - `list [--status ready|active|all|<status>]`: list cards (default: not finished).
 - `show <id>`: print one card with its notes and attachment paths.
 - `claim <id>`: claim a specific Ready card.
+- `check <id> <number> [--undo]`: tick (or untick) an acceptance criterion.
 - `move <id> <status>`: only when the human asks you to.
 - `archive <id>`: hide a finished card.
 

@@ -231,8 +231,10 @@ async function handleRequest(request, response, context) {
   }
   const annotationMatch = /^\/annotations\/([^/]+)$/.exec(url.pathname);
   if (request.method === "PATCH" && annotationMatch) {
-    const { comment, title, rank, status, waitingReason, archived } = await readJson(request);
-    const annotation = cards.updateCard(pathId(annotationMatch[1]), { comment, title, rank, status, waitingReason, archived });
+    const { comment, title, rank, severity, tags, acceptance, status, waitingReason, archived } = await readJson(request);
+    const annotation = cards.updateCard(pathId(annotationMatch[1]), {
+      comment, title, rank, severity, tags, acceptance, status, waitingReason, archived
+    });
     sendJson(response, 200, { ok: true, annotation });
     return;
   }

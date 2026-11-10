@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
-import { click, evaluate, readCards, waitForEvaluation } from "./journey_support.mjs";
+import { click, evaluate, readCards, waitFor, waitForEvaluation } from "./journey_support.mjs";
 
 const run = promisify(execFile);
 const cardsCli = path.resolve(import.meta.dirname, "../../packages/agent-annotations-receiver/bin/agent-annotations-cards.cjs");
@@ -45,6 +45,37 @@ export async function verifyBoard(chrome, { extensionId, panelSession, receiverR
   const idea = (await readCards(receiverRepo)).find((candidate) => candidate.comment === IDEA);
   assert.equal(idea.status, "draft");
   assert.equal(idea.url, undefined);
+
+  // Type, tags and a "Done when" criterion are editable on the card.
+  await evaluate(chrome, boardSession, `[...document.querySelectorAll('.board-card')].find((item) => item.textContent.includes(${JSON.stringify(IDEA)})).click()`);
+  await waitForEvaluation(chrome, boardSession, "document.querySelector('#cardDialog').open", "idea dialog");
+  await click(chrome, boardSession, "#cardDialog .segment[data-sev='bug']");
+  await waitFor(async () => (await readCards(receiverRepo)).find((candidate) => candidate.comment === IDEA)?.severity === "bug", "type change saved");
+  await evaluate(chrome, boardSession, `(() => {
+    const tags = document.querySelector('#cardTags');
+    tags.value = 'Ideas, UX';
+    tags.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('#newCriterion').value = 'The toggle remembers the choice';
+  })()`);
+  await click(chrome, boardSession, "#saveCard");
+  await waitForEvaluation(chrome, boardSession, "document.querySelector('#cardHint').textContent === 'Saved.'", "tags saved");
+  await click(chrome, boardSession, "#addCriterion");
+  await waitForEvaluation(chrome, boardSession, "document.querySelectorAll('#cardAcceptance input[type=checkbox]').length === 1", "criterion added");
+  await click(chrome, boardSession, "#cardAcceptance input[type=checkbox]");
+  await waitFor(async () => {
+    const edited = (await readCards(receiverRepo)).find((candidate) => candidate.comment === IDEA);
+    return edited?.acceptance?.[0]?.done === true && edited.tags.join() === "ideas,ux";
+  }, "criterion ticked and tags stored");
+  await click(chrome, boardSession, "#closeCard");
+  await waitForEvaluation(chrome, boardSession, `!document.querySelector('#cardDialog').open && document.body.textContent.includes('1/1 done')`, "progress on the card");
+
+  // Keyboard equivalent of dragging: Alt+Right moves the draft to Ready.
+  await evaluate(chrome, boardSession, `[...document.querySelectorAll('.board-card')].find((item) => item.textContent.includes(${JSON.stringify(IDEA)})).focus()`);
+  for (const type of ["keyDown", "keyUp"]) {
+    await chrome.command("Input.dispatchKeyEvent", { type, key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39, modifiers: 1 }, boardSession);
+  }
+  await waitForEvaluation(chrome, boardSession, inColumn("ready", IDEA), "moved with the keyboard");
+  await waitForEvaluation(chrome, boardSession, `document.activeElement?.textContent.includes(${JSON.stringify(IDEA)})`, "focus follows the moved card");
 
   // Done, then archived: it leaves the board until Show archived is on.
   await evaluate(chrome, boardSession, `[...document.querySelectorAll('.board-card')].find((item) => item.textContent.includes(${JSON.stringify(IDEA)})).click()`);

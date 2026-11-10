@@ -8,6 +8,7 @@ let assets = [];
 function reset() {
   assets = [];
   $("newComment").value = "";
+  $("newAcceptance").value = "";
   $("newCardHint").textContent = "";
   for (const radio of document.querySelectorAll('input[name="newType"]')) radio.checked = radio.value === "info";
   renderPendingThumbnails($("newAttachments"), assets);
@@ -30,7 +31,9 @@ async function save(status) {
   const severity = document.querySelector('input[name="newType"]:checked')?.value || "info";
   for (const button of [$("newCardDraft"), $("newCardSend")]) button.disabled = true;
   try {
-    await createCard({ comment, severity, status, createdAt: new Date().toISOString(), tags: [] }, assets);
+    const acceptance = $("newAcceptance").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      .map((text) => ({ text, done: false }));
+    await createCard({ comment, severity, status, acceptance, createdAt: new Date().toISOString(), tags: [] }, assets);
     reset();
     $("newCardDialog").close();
     announce(status === "draft" ? "Draft saved." : "Sent to the agent.");

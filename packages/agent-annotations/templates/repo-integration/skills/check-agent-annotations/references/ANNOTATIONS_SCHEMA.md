@@ -23,6 +23,10 @@ rather than by hand: the tool takes the lock that keeps claims atomic.
   "waitingReason": "review",
   "severity": "bug",
   "tags": ["checkout"],
+  "acceptance": [
+    { "text": "The button is disabled while the total recalculates", "done": true },
+    { "text": "It re-enables within 200 ms of the final total", "done": false }
+  ],
   "rank": "2026-11-10T12:00:00.000Z",
   "createdAt": "2026-11-10T12:00:00.000Z",
   "updatedAt": "2026-11-10T13:10:00.000Z",
@@ -56,7 +60,12 @@ The total jumps after the coupon applies; the button should wait for the final a
   `waitingReason` (`question` or `review`) is set only while `waiting`.
 - `claimedBy`, `claimedAt`, `heartbeatAt`: set only while `in_progress`.
   Notes from the claiming agent refresh `heartbeatAt`.
-- `rank`: sort order within Ready; agents take the lowest rank first.
+- `acceptance`: the human's "Done when" criteria, each `{ text, done }`. Tick
+  them with `check <id> <number>` as you meet them.
+- `tags`: lower-case labels set on the board.
+- `rank`: a number giving the order within Ready; agents take the lowest
+  rank first. Cards from 0.5.0 may still have an ISO date here, which sorts by
+  that timestamp.
 - `severity`: `bug`, `feature` or `info` (a request).
 - `routeKey` is `origin + pathname` (no query or hash).
 - `rect` is viewport-relative in CSS pixels; `dpr` is devicePixelRatio at capture time.

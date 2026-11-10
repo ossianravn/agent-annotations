@@ -97,9 +97,17 @@
             </select>
           </div>
           <div class="field">
-            <span class="field-label">Type</span>
-            <span id="cardType" class="type-label"></span>
+            <span class="field-label" id="cardTypeLabel">Type</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="cardTypeLabel">
+              <label class="segment" data-sev="bug"><input class="sr-only" type="radio" name="cardType" value="bug"><span class="sev-dot" aria-hidden="true"></span>Bug</label>
+              <label class="segment" data-sev="feature"><input class="sr-only" type="radio" name="cardType" value="feature"><span class="sev-dot" aria-hidden="true"></span>Feature</label>
+              <label class="segment" data-sev="info"><input class="sr-only" type="radio" name="cardType" value="info"><span class="sev-dot" aria-hidden="true"></span>Request</label>
+            </div>
           </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="cardTags">Tags</label>
+          <input id="cardTags" class="field-input field-tags" type="text" autocomplete="off" placeholder="checkout, a11y">
         </div>
         <p class="help" id="cardClaim"></p>
         <div class="field" id="cardPageField">
@@ -114,6 +122,15 @@
           <label class="field-label" for="cardComment">Comment</label>
           <textarea id="cardComment" class="field-input detail-comment" rows="6"></textarea>
         </div>
+        <section class="field" aria-labelledby="cardAcceptanceLabel">
+          <h3 class="field-label" id="cardAcceptanceLabel">Done when</h3>
+          <ol class="checklist" id="cardAcceptance"></ol>
+          <div class="page-row">
+            <label class="sr-only" for="newCriterion">New criterion</label>
+            <input id="newCriterion" class="field-input field-criterion" type="text" maxlength="300" autocomplete="off" placeholder="Add a criterion">
+            <button id="addCriterion" class="btn" type="button">Add</button>
+          </div>
+        </section>
         <div class="field">
           <span class="field-label">Attachments</span>
           <div class="detail-attachments" id="cardAttachments"></div>
@@ -162,6 +179,10 @@
             <label class="segment" data-sev="info"><input class="sr-only" type="radio" name="newType" value="info" checked><span class="sev-dot" aria-hidden="true"></span>Request</label>
           </div>
         </fieldset>
+        <div class="field">
+          <label class="field-label" for="newAcceptance">Done when (optional, one per line)</label>
+          <textarea id="newAcceptance" class="field-input" rows="3"></textarea>
+        </div>
         <div class="detail-attachments" id="newAttachments"></div>
         <p class="help" id="newCardHint" role="status" aria-live="polite"></p>
       </div>

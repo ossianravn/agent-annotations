@@ -1,17 +1,19 @@
-import { ACTIVITY_LABELS, STATUS_LABELS, relativeTime, typeLabel } from "../shared/card_labels.mjs";
+import { ACTIVITY_LABELS, STATUS_LABELS, relativeTime } from "../shared/card_labels.mjs";
 import { bindBackdropClose } from "../sidepanel/feedback.js";
 import { addAttachments, addComment, updateCard } from "./api.js";
 import { filesFromPaste, imagesToAssets, releaseThumbnails, renderCardThumbnails } from "./images.js";
 import { showOnPage } from "./show_on_page.js";
+import { acceptanceHandlers, bindCardFields, parseTags, renderAcceptance, renderType, tagsText } from "./card_fields.js";
 import { $, board } from "./state.js";
 
 let currentId = null;
 // What the editor last showed, so live updates never overwrite your edits.
-let shown = { title: "", comment: "", attachments: 0 };
+let shown = { title: "", comment: "", tags: "", attachments: 0 };
 
 const current = () => board.cards.find((card) => card.id === currentId) || null;
 const hint = (text) => { $("cardHint").textContent = text || ""; };
-const editorChanged = () => $("cardTitle").value !== shown.title || $("cardComment").value !== shown.comment;
+const editorChanged = () => $("cardTitle").value !== shown.title || $("cardComment").value !== shown.comment ||
+  $("cardTags").value !== shown.tags;
 
 function syncSave() {
   const empty = !$("cardTitle").value.trim() || !$("cardComment").value.trim();
@@ -34,10 +36,8 @@ function activityItem(entry) {
 
 function renderFacts(card) {
   $("cardStatus").value = selectValue(card);
-  const type = $("cardType");
-  type.textContent = typeLabel(card.severity);
-  type.dataset.sev = card.severity || "info";
-  type.prepend(Object.assign(document.createElement("span"), { className: "sev-dot", ariaHidden: "true" }));
+  renderType(card);
+  renderAcceptance(card, acceptanceHandlers(current, saveField));
   $("cardClaim").textContent = card.status === "in_progress" && card.claimedBy
     ? `Claimed by ${card.claimedBy}, last active ${relativeTime(card.heartbeatAt || card.claimedAt)}. Move it back to Ready to release it.`
     : card.archivedAt ? `Archived ${relativeTime(card.archivedAt)}.` : "";
@@ -57,9 +57,10 @@ function renderFacts(card) {
 }
 
 function fillEditor(card) {
-  shown = { title: card.title || "", comment: card.comment || "", attachments: card.attachments?.length || 0 };
+  shown = { title: card.title || "", comment: card.comment || "", tags: tagsText(card), attachments: card.attachments?.length || 0 };
   $("cardTitle").value = shown.title;
   $("cardComment").value = shown.comment;
+  $("cardTags").value = shown.tags;
   syncSave();
 }
 
@@ -106,6 +107,11 @@ async function change(task, message, { close = false } = {}) {
   }
 }
 
+// One field changed on its own (type, a criterion): save it right away.
+function saveField(patch, message) {
+  return change((card) => updateCard(card.id, patch), message);
+}
+
 async function uploadImages(files) {
   const assets = await imagesToAssets(files);
   if (!assets.length) return;
@@ -131,10 +137,15 @@ export function bindCardDialog() {
     releaseThumbnails();
     currentId = null;
   });
-  for (const field of ["cardTitle", "cardComment"]) $(field).addEventListener("input", syncSave);
+  for (const field of ["cardTitle", "cardComment", "cardTags"]) $(field).addEventListener("input", syncSave);
+  bindCardFields({ current, save: saveField });
 
   $("saveCard").addEventListener("click", () => change(async (card) => {
-    const updated = await updateCard(card.id, { title: $("cardTitle").value.trim(), comment: $("cardComment").value.trim() });
+    const updated = await updateCard(card.id, {
+      title: $("cardTitle").value.trim(),
+      comment: $("cardComment").value.trim(),
+      tags: parseTags($("cardTags").value)
+    });
     fillEditor(updated);
     return updated;
   }, "Saved."));

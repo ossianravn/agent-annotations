@@ -115,3 +115,21 @@ test("one broken card file does not hide the others", async () => {
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test("agents tick acceptance criteria by number", async () => {
+  const repo = await repoWithCards(["ready"]);
+  try {
+    const file = path.join(repo, ".agent-annotations/cards/card_0/card.md");
+    const text = await readFile(file, "utf8");
+    await writeFile(file, text.replace('"status":"ready"', '"status":"ready","acceptance":[{"text":"Button waits","done":false},{"text":"Spinner shows","done":false}]'));
+    const ticked = await cli(repo, "check", "card_0", "2");
+    assert.deepEqual(ticked.acceptance.map((item) => item.done), [false, true]);
+    const unticked = await cli(repo, "check", "card_0", "2", "--undo");
+    assert.deepEqual(unticked.acceptance.map((item) => item.done), [false, false]);
+    assert.match(await cliFails(repo, "check", "card_0", "3"), /from 1 to 2/);
+    const { stdout } = await run(process.execPath, [cardsCli, "show", "card_0", "--repo", repo]);
+    assert.match(stdout, /Done when:\n {2}1\. \[ \] Button waits/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});

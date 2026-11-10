@@ -282,6 +282,16 @@ test("open boards hear about card changes and can edit cards", async () => {
     })).json();
     assert.equal(edited.annotation.title, "Better title");
     assert.equal(edited.annotation.rank, 12.5);
+    const typed = await (await fetch(`${baseUrl}/annotations/${created.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ severity: "bug", tags: ["Checkout", "checkout", " a11y "], acceptance: [{ text: "Button waits" }, "Spinner shows"] })
+    })).json();
+    assert.equal(typed.annotation.severity, "bug");
+    assert.deepEqual(typed.annotation.tags, ["checkout", "a11y"]);
+    assert.deepEqual(typed.annotation.acceptance, [{ text: "Button waits", done: false }, { text: "Spinner shows", done: false }]);
+    const badType = await fetch(`${baseUrl}/annotations/${created.id}`, { method: "PATCH", headers, body: JSON.stringify({ severity: "urgent" }) });
+    assert.equal(badType.status, 400);
     const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
     const withImage = await (await fetch(`${baseUrl}/annotations/${created.id}/attachments`, {
       method: "POST",

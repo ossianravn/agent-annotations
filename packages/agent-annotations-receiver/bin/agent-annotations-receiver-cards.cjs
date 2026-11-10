@@ -43,6 +43,30 @@ function normalizedStatus(value) {
   return status;
 }
 
+const TYPES = new Set(["bug", "feature", "info"]);
+const MAX_TAGS = 10;
+const MAX_ACCEPTANCE_ITEMS = 30;
+
+function cleanTags(value) {
+  if (!Array.isArray(value)) throw cardError(400, "Tags must be a list.");
+  const tags = [...new Set(value.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean))];
+  if (tags.length > MAX_TAGS || tags.some((tag) => tag.length > 40)) {
+    throw cardError(400, `Use at most ${MAX_TAGS} tags of up to 40 characters.`);
+  }
+  return tags;
+}
+
+// "Done when…" items: the human writes them, the agent ticks them off.
+function cleanAcceptance(value) {
+  if (!Array.isArray(value)) throw cardError(400, "Acceptance criteria must be a list.");
+  const items = value.map((item) => ({ text: String(item?.text ?? item ?? "").trim(), done: Boolean(item?.done) }))
+    .filter((item) => item.text);
+  if (items.length > MAX_ACCEPTANCE_ITEMS || items.some((item) => item.text.length > 300)) {
+    throw cardError(400, `Use at most ${MAX_ACCEPTANCE_ITEMS} criteria of up to 300 characters.`);
+  }
+  return items;
+}
+
 function titleFrom(comment) {
   const line = String(comment || "").split(/\r?\n/).find((candidate) => candidate.trim()) || "Untitled";
   const title = line.trim();
@@ -172,7 +196,8 @@ function createCardStore(repoRoot, options = {}) {
         title: String(fields.title || "").trim() || titleFrom(comment),
         status: ["draft", "ready"].includes(status) ? status : "ready",
         severity: normalizedType(fields.severity),
-        tags: Array.isArray(fields.tags) ? fields.tags : [],
+        tags: Array.isArray(fields.tags) ? cleanTags(fields.tags) : [],
+        acceptance: Array.isArray(fields.acceptance) ? cleanAcceptance(fields.acceptance) : [],
         rank: Date.parse(createdAt) || Date.now(),
         createdAt,
         updatedAt: now(),
@@ -222,9 +247,30 @@ function createCardStore(repoRoot, options = {}) {
         if (!Number.isFinite(patch.rank)) throw cardError(400, "Rank must be a number.");
         card = { ...card, rank: patch.rank, updatedAt: now() };
       }
+      if (patch.severity != null) {
+        const severity = normalizedType(patch.severity);
+        if (!TYPES.has(severity)) throw cardError(400, "Type must be bug, feature or info.");
+        card = { ...card, severity, updatedAt: now() };
+      }
+      if (patch.tags != null) card = { ...card, tags: cleanTags(patch.tags), updatedAt: now() };
+      if (patch.acceptance != null) card = { ...card, acceptance: cleanAcceptance(patch.acceptance), updatedAt: now() };
       if (patch.status != null) card = applyStatus(card, normalizedStatus(patch.status), patch);
       if (patch.archived != null) card = { ...card, archivedAt: patch.archived ? now() : undefined, updatedAt: now() };
       return writeCard(card);
+    });
+  }
+
+  // 1-based, as the CLI prints them.
+  function checkAcceptance(id, number, done = true) {
+    return withLock(() => {
+      const card = requireCard(id);
+      const items = card.acceptance || [];
+      const index = Number(number) - 1;
+      if (!Number.isInteger(index) || !items[index]) {
+        throw cardError(400, items.length ? `Pick a criterion from 1 to ${items.length}.` : "This card has no acceptance criteria.");
+      }
+      const acceptance = items.map((item, position) => (position === index ? { ...item, done } : item));
+      return writeCard({ ...card, acceptance, updatedAt: now() });
     });
   }
 
@@ -360,6 +406,7 @@ function createCardStore(repoRoot, options = {}) {
     activeCards,
     addActivity,
     addAttachments,
+    checkAcceptance,
     claimCard,
     claimNext,
     createCard,

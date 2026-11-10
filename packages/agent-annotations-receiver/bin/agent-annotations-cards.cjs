@@ -14,6 +14,7 @@ const USAGE = `Usage: node .tools/agent-annotations-cards.cjs <command> [options
   next --agent <name> [--json]                         Claim the top Ready card
   claim <id> --agent <name>                            Claim a specific Ready card
   comment <id> "text" [--agent <name>]                 Add a note to the card
+  check <id> <number> [--undo]                         Tick (or untick) an acceptance criterion
   handback <id> --review "summary" [--link <ref>]...   Done: hand back for review
   handback <id> --question "question"                  Blocked: ask the human
   move <id> <status> [--reason question|review]        Set a status by hand
@@ -31,7 +32,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = value.slice(2);
-    if (key === "json") options.json = true;
+    if (["json", "undo"].includes(key)) options[key] = true;
     else if (key === "link") options.links.push(argv[++index]);
     else options[key] = argv[++index];
   }
@@ -67,10 +68,15 @@ function details(card, repoRoot) {
     card.url ? `Page: ${card.url}` : null,
     card.element?.primary ? `Element: ${card.element.primary.type}=${card.element.primary.value}` : null,
     card.layout?.viewportWidth ? `Layout: ${card.layout.viewportWidth}px wide viewport` : null,
+    card.tags?.length ? `Tags: ${card.tags.join(", ")}` : null,
     ...(card.attachments || []).map((attachment) => `Attachment: ${path.join(repoRoot, attachment.path)}`),
     "",
     card.comment || "(no description)"
   ];
+  if (card.acceptance?.length) {
+    lines.push("", "Done when:");
+    card.acceptance.forEach((item, index) => lines.push(`  ${index + 1}. [${item.done ? "x" : " "}] ${item.text}`));
+  }
   for (const entry of card.activity || []) lines.push("", `[${entry.at}] ${entry.author} (${entry.kind}): ${entry.text}`);
   return lines.filter((line) => line !== null).join("\n");
 }
@@ -130,6 +136,13 @@ function run(argv, overrides = {}) {
       kind: "comment",
       text: requireArg(String(extra || "").trim(), "Write the comment text in quotes.")
     });
+    print(card, options, repoRoot);
+  } else if (command === "check") {
+    const card = cards.checkAcceptance(
+      requireArg(id, "Which card? Pass its ID."),
+      requireArg(extra, "Which criterion? Pass its number from `show`."),
+      !options.undo
+    );
     print(card, options, repoRoot);
   } else if (command === "handback") {
     const reason = options.review != null ? "review" : options.question != null ? "question" : null;
