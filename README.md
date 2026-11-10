@@ -186,6 +186,13 @@ After you’ve run `setup` once, you can start the receiver again with:
 pnpm dlx agent-annotations start --port 8787
 ```
 
+### Running the receiver in a container or VM
+
+The receiver accepts connections from this computer only (`127.0.0.1`). If it
+runs inside Docker or a VM and Chrome runs outside it, start it with
+`--host 0.0.0.0` (for example `pnpm dlx agent-annotations start --host 0.0.0.0`)
+and publish the port. The token still protects everything except `/health`.
+
 ### Option C: receiver only (advanced / debugging)
 If you only want the receiver (no skill/instructions install), run:
 ```bash

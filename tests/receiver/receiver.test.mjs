@@ -298,6 +298,27 @@ test("open boards hear about card changes and can edit cards", async () => {
   }
 });
 
+test("receiver listens on this computer only unless told otherwise", async () => {
+  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-host-test-"));
+  const port = await freePort();
+  const receiver = spawn(process.execPath, [receiverScript, "--repo", temporaryRoot, "--port", String(port)], {
+    cwd: root,
+    env: { ...process.env, ANNOTATION_TOKEN: token, ANNOTATION_HOST: "" }
+  });
+  let output = "";
+  receiver.stdout.setEncoding("utf8");
+  receiver.stdout.on("data", (chunk) => { output += chunk; });
+  try {
+    await waitForReceiver(`http://127.0.0.1:${port}`);
+    assert.match(output, new RegExp(`Listening on http://127\\.0\\.0\\.1:${port}`));
+    const health = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
+    assert.equal(health.repoRoot, undefined, "the disk path is nobody else's business");
+  } finally {
+    await stopProcess(receiver);
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test("receiver keeps one project identity across restarts", async () => {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "agent-annotations-project-test-"));
   const startHealth = async () => {

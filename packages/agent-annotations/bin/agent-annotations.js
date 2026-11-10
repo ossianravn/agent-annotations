@@ -49,7 +49,8 @@ Options:
               none  -> do not copy receiver files
 
   --port      Receiver port (default: 8787)
-  --host      Receiver host (default: 0.0.0.0)
+  --host      Receiver host (default: 127.0.0.1, this computer only;
+              use 0.0.0.0 when the receiver runs in a container or VM)
   --repo      Repo root to write .agent-annotations into (default: detected repo root)
   --no-start  For setup: install only, don’t start receiver
 
@@ -376,7 +377,7 @@ function main() {
     startReceiver({
       repoRoot: targetRepoRoot,
       port: args.port || process.env.ANNOTATION_PORT || "8787",
-      host: args.host || process.env.ANNOTATION_HOST || "0.0.0.0",
+      host: args.host || process.env.ANNOTATION_HOST || "127.0.0.1",
       baseUrl: args.baseUrl || process.env.ANNOTATION_BASE_URL || null
     });
     return;
@@ -409,7 +410,7 @@ function main() {
     startReceiver({
       repoRoot: targetRepoRoot,
       port: args.port || process.env.ANNOTATION_PORT || "8787",
-      host: args.host || process.env.ANNOTATION_HOST || "0.0.0.0",
+      host: args.host || process.env.ANNOTATION_HOST || "127.0.0.1",
       baseUrl: args.baseUrl || process.env.ANNOTATION_BASE_URL || null
     });
     return;

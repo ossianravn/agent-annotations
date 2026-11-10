@@ -15,9 +15,11 @@ const argValue = (flag, fallback) => {
 };
 
 const port = Number.parseInt(argValue("--port", process.env.ANNOTATION_PORT || "8787"), 10);
-const host = argValue("--host", process.env.ANNOTATION_HOST || "0.0.0.0");
+// Only this computer by default. Pass --host 0.0.0.0 when the receiver runs
+// in a container or VM and Chrome connects from outside it.
+const host = argValue("--host", process.env.ANNOTATION_HOST || "127.0.0.1");
 const repoRoot = path.resolve(argValue("--repo", process.env.ANNOTATION_REPO_ROOT || process.cwd()));
-const baseUrl = argValue("--base-url", process.env.ANNOTATION_BASE_URL || `http://localhost:${port}`);
+const baseUrl = argValue("--base-url", process.env.ANNOTATION_BASE_URL || `http://127.0.0.1:${port}`);
 const dataDir = path.join(repoRoot, ".agent-annotations");
 const files = {
   token: path.join(dataDir, "token.txt"),
@@ -195,7 +197,6 @@ async function handleRequest(request, response, context) {
       ok: true,
       projectId: project.projectId,
       name: project.name,
-      repoRoot,
       receiverBaseUrl: baseUrl,
       wipLimitPerAgent: project.wipLimitPerAgent
     });

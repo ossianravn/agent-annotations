@@ -40,7 +40,9 @@ pnpm dlx agent-annotations start
 - `--receiver repo|none`
 - `--force` (required when updating an existing repo integration)
 - `--port 8787`
-- `--host 0.0.0.0`
+- `--host 127.0.0.1` (the default: only this computer can reach the receiver;
+  use `--host 0.0.0.0` when it runs in a container or VM and Chrome connects
+  from outside)
 - `--repo /path/to/repo`
 
 ## Repo
