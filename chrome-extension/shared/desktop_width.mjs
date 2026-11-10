@@ -4,7 +4,7 @@
 const MIN_ZOOM = 0.5;
 
 function stateKey(tabId) {
-  if (!Number.isInteger(tabId)) throw new Error("A tab ID is required for desktop width.");
+  if (!Number.isInteger(tabId)) throw new Error("A tab ID is required for Zoom to fit.");
   return `desktopWidth:${tabId}`;
 }
 

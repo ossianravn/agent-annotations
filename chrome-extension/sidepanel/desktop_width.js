@@ -67,7 +67,7 @@ export async function syncDesktopWidth() {
     await applyForCurrentTab();
   } catch (error) {
     await refreshLayout();
-    announceAction(`Desktop width is unavailable on this page: ${error?.message || error}`, "error");
+    announceAction(`Zoom to fit is unavailable on this page: ${error?.message || error}`, "error");
   }
 }
 

@@ -121,7 +121,8 @@ p {
   justify-content: space-between;
   gap: var(--space-3);
   min-block-size: 2.75rem;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  /* Same right edge as the tab bar, so the Annotate and Zoom to fit switches line up. */
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   border-block-end: 1px solid var(--rule);
 }
 

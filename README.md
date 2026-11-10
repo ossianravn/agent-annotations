@@ -56,9 +56,9 @@ now shows the repo's name and **Connected**.
 
 **4. Annotate something.**
 Turn on **Annotate** (or press `Ctrl+Shift+Y`, `Command+Shift+Y` on macOS)
-and click an element on the page. Write what should change, pick a type (Bug,
-Feature or Request), and optionally attach a screenshot of the element or the
-page. Click **Send to agent**. **Save draft** keeps it for yourself until it
+and click an element on the page. Optionally attach a screenshot of the
+element or the page, then write what should change and pick a type (Bug,
+Feature or Request). Click **Send to agent**. **Save draft** keeps it for yourself until it
 is ready.
 
 **5. Ask your agent to do the work.**
@@ -214,10 +214,10 @@ browser first and sent to its repo as soon as the receiver answers. The
 extension checks every minute and whenever the panel opens. Annotations that
 are still waiting show in the Open tab with **Retry** and **Discard**.
 
-### Desktop width
+### Zoom to fit
 
 Chrome's side panel makes the page narrower, which can switch a site to its
-tablet layout. Turn on **Desktop width** to zoom the page out so it keeps the
+tablet layout. Turn on **Zoom to fit** to zoom the page out so it keeps the
 width it had without the panel. The zoom is undone when you turn it off or
 close the panel. Every annotation records the viewport width and zoom it was
 made at.
