@@ -1,20 +1,50 @@
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
+// Chrome for Testing (as installed under ~/.agent-browser) has a different
+// layout on each OS; installed Chrome is the fallback.
+const TESTING_BUILD_BINARIES = [
+  "chrome-win64/chrome.exe",
+  "chrome-linux64/chrome",
+  "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "chrome"
+];
+const INSTALLED_CHROME = {
+  win32: [
+    path.join(process.env.PROGRAMFILES || "C:\\Program Files", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env["PROGRAMFILES(X86)"] || "C:\\Program Files (x86)", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Google/Chrome/Application/chrome.exe")
+  ],
+  darwin: ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"],
+  linux: ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]
+};
+
 export async function findChromePath() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+  const candidates = [];
   const browserRoot = path.join(os.homedir(), ".agent-browser/browsers");
   try {
     const versions = (await readdir(browserRoot))
       .filter((name) => name.startsWith("chrome-"))
       .sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
-    if (versions[0]) return path.join(browserRoot, versions[0], "chrome");
+    for (const version of versions) {
+      candidates.push(...TESTING_BUILD_BINARIES.map((binary) => path.join(browserRoot, version, binary)));
+    }
   } catch {
-    // Fall through to the system Chrome path.
+    // No testing builds installed; try installed Chrome.
   }
-  return "/usr/bin/google-chrome";
+  candidates.push(...(INSTALLED_CHROME[process.platform] || []));
+  for (const candidate of candidates) {
+    try {
+      if ((await stat(candidate)).isFile()) return candidate;
+    } catch {
+      // Not here; try the next one.
+    }
+  }
+  throw new Error(`No Chrome found. Set CHROME_PATH, or install Chrome for Testing. Looked in:\n${candidates.join("\n")}`);
 }
 
 export function freePort() {

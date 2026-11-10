@@ -88,7 +88,8 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 500));
 
   await chrome.command("Extensions.triggerAction", { id: extensionId, targetId: tabTarget.targetId });
-  let panelTarget = await chrome.waitForTarget((target) => target.url === sidePanelUrl);
+  // A cold Chrome profile can take more than 10s to open the first side panel.
+  let panelTarget = await chrome.waitForTarget((target) => target.url === sidePanelUrl, 30000);
   let panelSession = await chrome.attach(panelTarget.targetId);
   await waitForEvaluation(chrome, panelSession, "Boolean(document.querySelector('#send'))", "side panel load");
   await new Promise((resolve) => setTimeout(resolve, 1000));
