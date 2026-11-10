@@ -9,8 +9,8 @@ A Chrome side-panel extension for annotating UI elements on pages (often `localh
 - `packages/agent-annotations-receiver/`: Node.js CLI receiver that writes `.agent-annotations/` into a target repo (`agent-annotations-receiver`).
   Its `bin/` files are the canonical receiver, card store and agent cards CLI; `pnpm sync:receiver` copies them into `repo-integration/.tools/` and the scaffold template (tests fail if the copies drift).
 - `repo-integration/`: Template files copied into target repos (e.g. `.tools/` receiver launcher and `skills/`).
-- `scripts/`: Release/packaging utilities (Python).
-- `docs/`: Documentation assets (screenshots).
+- `scripts/`: Release/packaging utilities (Python), receiver sync, and `readme-screenshots/` (renders the README images from the real extension).
+- `docs/`: Design notes; `docs/images/` holds the README header and screenshots (light and dark pairs). Regenerate the screenshots with `pnpm screenshots:readme` after visible UI changes.
 - `dist/`: Built release artifacts (ignored by git).
 
 ## Build, Test, and Development Commands
@@ -31,7 +31,8 @@ Prereqs: Node.js `>=18`, `pnpm` (see `package.json` `packageManager`), and Pytho
 
 ## Testing Guidelines
 
-- No automated test suite is currently wired up. For changes, include a short manual test plan in the PR:
+- Automated: `pnpm test:extension`, `pnpm test:receiver` (Node test runner) and `pnpm test:extension:browser` (real headless Chrome journeys in `tests/browser/`).
+- For UI changes, also include a short manual test plan in the PR:
   - Extension: load `chrome-extension/` via `chrome://extensions` → “Load unpacked” and verify side panel flows.
   - Receiver: start the receiver and confirm it writes/updates `.agent-annotations/` in a sample repo.
 

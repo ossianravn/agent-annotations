@@ -1,313 +1,409 @@
-# Agent Annotations
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
+  <img alt="Agent Annotations: annotate any UI and hand it to your coding agent" src="docs/images/header-light.png">
+</picture>
 
-A Chrome side-panel extension for annotating UI elements on pages (often `localhost`), plus a lightweight local receiver that turns them into cards in your repo, for coding agents to pick up and hand back.
+<p align="center">
+  <a href="https://github.com/ossianravn/agent-annotations/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ossianravn/agent-annotations?label=extension"></a>
+  <a href="https://www.npmjs.com/package/agent-annotations"><img alt="npm" src="https://img.shields.io/npm/v/agent-annotations?label=npm"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/ossianravn/agent-annotations"></a>
+</p>
 
-## How it works (visual)
+Agent Annotations is a Chrome side panel for pointing at things on a web page
+and telling a coding agent what to change. You click an element, write a
+comment, and send it. The note lands in your repository as a card with the
+page, the element's locators and a screenshot. Codex, Claude Code or another
+agent picks it up, does the work and hands it back, and you review the result
+on a board.
 
-1) Annotate an element in the extension and click **Send to agent** (or **Save draft**):
+It works on any page: your local dev server, a staging site or the live site.
+Everything stays on your computer; the extension talks only to a small
+receiver running in your repo.
 
-<img src="docs/images/example-usage-1.png" width="900" alt="Agent Annotations: creating an annotation in the extension" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/panel-dark.png">
+  <img alt="A pricing page with the Team plan card selected, and the Agent Annotations side panel next to it with a comment, the type Bug, an element screenshot and a Send to agent button" src="docs/images/panel-light.png">
+</picture>
 
-2) The receiver writes it as a card into your repo (`.agent-annotations/cards/`):
+## Get started
 
-<img src="docs/images/example-usage-2.png" width="900" alt="Agent Annotations: receiver writing annotations into the repo" />
+You need Chrome (or Edge, Brave or another Chromium browser, version 116 or
+later) and Node.js 18 or later. The steps use `pnpm`; `npx` works the same way.
 
-3) In your agent, run `check-agent-annotations` to turn annotations into actions:
+**1. Install the extension.**
+Download `agent-annotations-chrome-extension-v<version>.zip` from the
+[latest release](https://github.com/ossianravn/agent-annotations/releases/latest)
+and unzip it into a folder of its own. Open `chrome://extensions`, turn on
+**Developer mode**, click **Load unpacked** and pick that folder. Pin the
+extension so its icon stays in the toolbar.
 
-<img src="docs/images/example-usage-3.png" width="900" alt="Agent Annotations: agent workflow reading annotations" />
+**2. Connect your repository.**
+In a terminal, go to the root of the project you want to work on and run:
 
-## Quick start
-
-### First time (per repo)
-
-1. Install the extension:
-   - Download the zip from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest)
-   - Unzip it (so the folder contains `manifest.json` at the top level)
-   - In `chrome://extensions` (Developer mode), **drag the folder in** (or click **Load unpacked** and select it)
-2. In the repo you want to write annotations into, run (and keep it running):
-   ```bash
-   pnpm dlx agent-annotations@latest setup
-   ```
-   If you’re using a specific agent, set it explicitly (example: `--agent claude`).
-3. Paste the token into the extension’s connection settings (it’s also saved to `.agent-annotations/token.txt`)
-4. In your agent, invoke: `check-agent-annotations`
-
-### Updating an existing repo integration
-
-Update the extension and every connected repo integration together. `setup` is
-non-destructive by default: it preserves existing integration files, so running
-it again without `--force` can restart an older repo-local receiver.
-
-1. Stop the receiver running for that repo (`Ctrl+C` in its terminal).
-2. From the repo root, refresh the managed integration files and restart the receiver:
-   ```bash
-   pnpm dlx agent-annotations@latest setup --force
-   ```
-
-If you customized the installed agent skill or instructions and want to leave
-them untouched, use:
-
-```bash
-pnpm dlx agent-annotations@latest setup --force --skill none
-```
-
-### Daily use
-
-1. From the repo root, start the receiver (and keep it running):
-   ```bash
-   pnpm dlx agent-annotations start --port 8787
-   ```
-2. Open the extension (it should already have your token; if not, use `.agent-annotations/token.txt`)
-3. In your agent, invoke: `check-agent-annotations`
-
-Saved unresolved annotations remain available in the side panel. Open one to
-edit its comment, copy it as a prompt, preview image attachments, or resolve it.
-Image attachments appear as square thumbnails; selecting one opens the full
-image with its stored path below it.
-
-### Projects
-
-Each repo is a project, identified by the receiver (not by the page's URL), so
-`localhost:3000`, a staging URL and your live domain can all belong to the
-same repo. The first time you open a page that isn't in a project while a
-receiver is running, the panel offers **Add page** to put it in that repo. The
-panel header always shows the page's project. `localhost`, `127.0.0.1` and
-`[::1]` count as the same host.
-
-If a different repo's receiver answers for a page (for example, another app
-now runs on that port), the panel shows **Other repo running** and pauses
-saving until you move the page or start the right receiver, so annotations
-never land in the wrong repo. Manage projects and their pages under Settings.
-
-### Cards and statuses
-
-Every annotation is a card with a status, so it's clear who has to act next:
-
-| Status | Meaning |
-| --- | --- |
-| Draft | Saved with **Save draft**. Agents never pick it up. |
-| Ready for agent | Saved with **Send to agent**, or moved there by you. |
-| In progress | An agent claimed it. Several agents can work at once; each card goes to one, and each agent holds at most two. |
-| Waiting on you | The agent handed it back: finished (**review**) or blocked (**question**). |
-| Done / Won't do | You closed it. **Mark done** after checking the result. |
-
-The Open tab lists the page's unfinished cards with Waiting on you first. Open a
-card to read the agent's notes and question, or change its status. If an agent
-stops while holding a card, move the card back to Ready to release it.
-
-### The board
-
-The board button in the panel header (next to Settings) opens every card of the
-project in a full tab, one column per status. Drag cards between columns, or up
-and down to change the order agents pick Ready cards in; with the keyboard,
-focus a card and press Alt + arrow keys. Search and filter by type, and use
-**New card** for ideas that don't belong to a page.
-
-Each card can carry a type, tags and a **Done when** checklist. Agents tick
-checklist items off as they meet them (`check <id> <number>` in the cards
-tool), so you can see what's left before you mark the card done. Open a card to edit it,
-answer an agent's question (**Reply and send back**), add images by pasting or
-with **Add image**, archive finished cards, or **Show on page** to open the
-page with the element outlined.
-
-The board and the panel update by themselves while agents work: the receiver
-tells them when cards change.
-
-### Saving while the repo is offline
-
-Saving never needs a running receiver. Every annotation is stored in the
-browser first and then sent to its repo: immediately when the receiver is
-running, otherwise as soon as it is (the extension checks every minute and
-whenever the panel opens). Waiting annotations show in the Open tab with
-Retry and Discard. Annotations on a page that isn't in a project wait until
-you add the page to one.
-
-### Desktop width
-
-Chrome's side panel narrows the page, which can switch it to a tablet layout.
-Turn on **Desktop width** to zoom the page out so it keeps the width it had
-without the panel. The zoom is undone when you turn it off or close the panel.
-Every annotation records the viewport width and zoom it was made at.
-
-What `setup` does:
-
-- Installs the skill/instructions into the repo (so your agent will read `.agent-annotations/`)
-- Installs `.tools/agent-annotations-receiver.cjs` and starts the receiver (writes `.agent-annotations/` into the repo)
-- Preserves existing integration files unless `--force` is supplied
-
----
-
-This kit includes:
-- **Chrome extension** (load unpacked)
-- **Repo integration** (`.tools` receiver launcher + example snippets)
-- **Published npm packages**:
-  - `agent-annotations-receiver` (CLI receiver)
-  - `agent-annotations` (init scaffold for repos)
-
----
-
-## 1) Install the extension (Chrome/Chromium: Windows/macOS/Linux)
-
-Requires a Chromium browser with the Extensions Side Panel API (Chrome/Edge/Brave, etc.).
-
-### Option A: Download the extension zip (recommended)
-
-1. Download the latest release asset from [GitHub Releases](https://github.com/ossianravn/agent-annotations/releases/latest)
-2. Unzip it into its own folder (so the folder contains `manifest.json` at the top level)
-3. Open `chrome://extensions`
-4. Enable **Developer mode**
-5. Drag the folder into the page (or click **Load unpacked** and select it)
-
-### Option B: Load unpacked from this repo
-
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked**
-4. Select: `chrome-extension/`
-
-Click the extension icon → the side panel opens.
-
-Shortcut to toggle annotation mode:
-- Windows/Linux: `Ctrl+Shift+Y`
-- macOS: `Command+Shift+Y`
-
----
-
-## 2) Run the receiver
-
-### Option A: one command (recommended)
-From the repo root you want to write `.agent-annotations/` into (keeps running):
 ```bash
 pnpm dlx agent-annotations@latest setup
 ```
 
-For an existing installation, follow [Updating an existing repo
-integration](#updating-an-existing-repo-integration). Running `setup` without
-`--force` does not replace the receiver already copied into the repo.
+This installs the agent skill and a small receiver into the repo, then starts
+the receiver. Leave it running. It prints a token, which is also saved in
+`.agent-annotations/token.txt`.
 
-### Option B: start again later
-After you’ve run `setup` once, you can start the receiver again with:
+**3. Open your app and the panel.**
+Open the page you want to annotate (for example `http://localhost:3000`) and
+click the extension icon. The panel asks whether to add the page to your
+repo. Paste the token from step 2 and click **Add page**. The panel header
+now shows the repo's name and **Connected**.
+
+**4. Annotate something.**
+Turn on **Annotate** (or press `Ctrl+Shift+Y`, `Command+Shift+Y` on macOS)
+and click an element on the page. Write what should change, pick a type (Bug,
+Feature or Request), and optionally attach a screenshot of the element or the
+page. Click **Send to agent**. **Save draft** keeps it for yourself until it
+is ready.
+
+**5. Ask your agent to do the work.**
+In your coding agent, in the same repo, run the skill that `setup` installed:
+
+| Agent | What to type |
+| --- | --- |
+| Codex | `$check-agent-annotations` |
+| Claude Code | `/check-agent-annotations` |
+| Gemini CLI, Antigravity, OpenCode, Copilot | "check agent annotations" |
+
+The agent claims the card, makes the change, ticks off the card's checklist and
+hands it back for review, or with a question if it is stuck.
+
+**6. Review the result.**
+Click the board button in the panel header. Cards the agent handed back are
+under **Waiting on you**. Open one to read the agent's summary, then click
+**Mark done**, or write a reply and click **Reply and send back**.
+
+The next time you work on the project, start the receiver from the repo root
+with:
+
 ```bash
-pnpm dlx agent-annotations start --port 8787
+pnpm dlx agent-annotations start
 ```
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph Browser["Chrome"]
+    A["Side panel<br>annotate an element"]
+    F["Board<br>review cards"]
+  end
+  subgraph Repo["Your repository"]
+    B["Receiver<br>127.0.0.1:8787"]
+    C[".agent-annotations/cards/"]
+  end
+  D["Coding agent<br>Codex, Claude Code, …"]
+  A -- "Send to agent" --> B
+  B --> C
+  C -- "next / claim" --> D
+  D -- "handback" --> C
+  C -- "live updates" --> F
+  F -- "Mark done / Reply" --> B
+```
+
+- The **extension** captures the element (selectors, test IDs, text, size and
+  position), the page URL, the viewport width and any screenshots, together
+  with your comment.
+- The **receiver** is a dependency-free Node script in `.tools/`. It listens on
+  `127.0.0.1` only and writes each annotation as a card in
+  `.agent-annotations/cards/<id>/`.
+- The **agent** reads and updates cards through a small command-line tool,
+  `.tools/agent-annotations-cards.cjs`, never by talking to the browser.
+- The **board** and the panel watch the cards and update by themselves while
+  agents work.
+
+The cards in the repository are the shared state. The browser and the agent
+never need to run at the same time.
+
+## Cards and the board
+
+Every annotation becomes a card with a status, so it is always clear who acts
+next.
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> Draft: Save draft
+  [*] --> Ready: Send to agent
+  Draft --> Ready: you
+  Ready --> InProgress: agent claims
+  InProgress --> Waiting: agent hands back
+  Waiting --> Ready: you reply
+  Waiting --> Done: you mark done
+  Waiting --> WontDo: you close
+  InProgress: In progress
+  Waiting: Waiting on you
+  WontDo: Won't do
+```
+
+| Status | Meaning |
+| --- | --- |
+| Draft | Saved with **Save draft**. Agents never pick it up. |
+| Ready for agent | Waiting for an agent. Agents take Ready cards from the top. |
+| In progress | An agent claimed it. Each card goes to one agent, and each agent holds at most two. |
+| Waiting on you | The agent handed it back, either finished (**review**) or blocked (**question**). |
+| Done / Won't do | You closed it. Done cards can be archived. |
+
+The board shows every card of a project, one column per status:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/board-dark.png">
+  <img alt="The board with columns Draft, Ready for agent, In progress, Waiting on you and Done, holding cards for the pricing page" src="docs/images/board-light.png">
+</picture>
+
+- Drag cards between columns, or up and down to set the order agents pick
+  Ready cards in. With the keyboard, focus a card and press `Alt` plus an
+  arrow key.
+- Search, filter by type, and use **New card** for ideas that don't belong to
+  a page.
+- Each card can have a type, tags and a **Done when** checklist. Agents tick
+  items off as they meet them, so you can see what is left before you mark the
+  card done.
+- Open a card to edit it, answer a question, add images (paste them or use
+  **Add image**), archive it, or use **Show on page** to open the page with
+  the element outlined.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/card-dark.png">
+  <img alt="A card handed back for review: both Done when items are ticked, and the agent's summary and changed file are shown under From the agent" src="docs/images/card-light.png">
+</picture>
+
+The **Open** tab in the side panel lists the current page's unfinished cards,
+with the ones waiting on you first. If an agent stops while holding a card,
+move the card back to Ready to release it.
+
+## What the agent does
+
+The installed skill tells the agent to work through the cards tool. You can
+run the same commands yourself:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-dark.png">
+  <img alt="A terminal: listing Ready cards, then claiming the next one as codex, which prints the card's page, type, tags, comment and Done when checklist" src="docs/images/agent-light.png">
+</picture>
+
+| Command | What it does |
+| --- | --- |
+| `list [--status ready\|all\|<status>]` | List cards (unfinished ones by default). |
+| `next --agent <name>` | Claim the top Ready card and print it. |
+| `claim <id> --agent <name>` | Claim a specific Ready card. |
+| `show <id>` | Print one card. |
+| `comment <id> "text"` | Add a note to the card. |
+| `check <id> <number> [--undo]` | Tick (or untick) a Done when item. |
+| `handback <id> --review "summary" [--link <file or URL>]` | Hand the card back as finished. |
+| `handback <id> --question "question"` | Hand the card back with a question. |
+| `move <id> <status>` | Set a status by hand. |
+| `archive <id>` | Hide a finished card. |
+
+Run them as `node .tools/agent-annotations-cards.cjs <command>`. Add `--json`
+for machine-readable output. Claims go through a lock file, so several agents
+can work in the same repo without taking the same card.
+
+Agents only check their work in a browser when you ask them to, using whatever
+browser tools they have.
+
+## More about the panel
+
+### Projects
+
+Each repository is a project, identified by its receiver rather than by the
+page's address. That means `localhost:3000`, a staging URL and your live
+domain can all belong to the same repo. The first time you open a page that
+isn't in a project while a receiver is running, the panel offers **Add page**.
+`localhost`, `127.0.0.1` and `[::1]` count as the same host.
+
+If another repo's receiver answers for a page (for example because a different
+app now runs on that port), the panel shows **Other repo running** and holds
+new annotations in the browser until the right receiver is running, so they
+never land in the wrong repo. Manage projects and their pages in the panel's
+Settings.
+
+### Saving while the receiver is off
+
+Saving never needs a running receiver. Every annotation is stored in the
+browser first and sent to its repo as soon as the receiver answers. The
+extension checks every minute and whenever the panel opens. Annotations that
+are still waiting show in the Open tab with **Retry** and **Discard**.
+
+### Desktop width
+
+Chrome's side panel makes the page narrower, which can switch a site to its
+tablet layout. Turn on **Desktop width** to zoom the page out so it keeps the
+width it had without the panel. The zoom is undone when you turn it off or
+close the panel. Every annotation records the viewport width and zoom it was
+made at.
+
+## Setup options
+
+`setup` installs the integration and starts the receiver. `init` installs it
+without starting anything, and `start` starts a receiver that is already
+installed.
+
+```bash
+pnpm dlx agent-annotations@latest setup [options]
+pnpm dlx agent-annotations init [options]
+pnpm dlx agent-annotations start [--port 8787]
+```
+
+| Option | Values | Default |
+| --- | --- | --- |
+| `--agent` | `auto`, `codex`, `claude`, `gemini`, `antigravity`, `opencode`, `copilot`, `all` | `auto` (detects agent folders, falls back to `codex`) |
+| `--skill` | `repo` (in this repo), `user` (your global skill folder), `none` | `repo` |
+| `--receiver` | `repo` (copy the receiver into `.tools/`), `none` | `repo` |
+| `--port` | Receiver port | `8787` |
+| `--host` | Receiver address; use `0.0.0.0` in a container or VM | `127.0.0.1` |
+| `--repo` | Repository root to write `.agent-annotations/` into | detected |
+| `--no-start` | Install without starting the receiver (`setup` only) | |
+| `--force` | Replace existing integration files (needed to update) | |
+
+Where the skill goes for each agent, with `--skill repo`:
+
+| Agent | Location |
+| --- | --- |
+| Codex | `.codex/skills/check-agent-annotations/` |
+| Claude Code | `.claude/skills/check-agent-annotations/` |
+| Gemini CLI | `.gemini/skills/check-agent-annotations/` |
+| Antigravity | `.agent/skills/check-agent-annotations/` |
+| OpenCode | `.opencode/skills/check-agent-annotations/` |
+| Copilot | a section in `.github/copilot-instructions.md` |
 
 ### Running the receiver in a container or VM
 
-The receiver accepts connections from this computer only (`127.0.0.1`). If it
-runs inside Docker or a VM and Chrome runs outside it, start it with
-`--host 0.0.0.0` (for example `pnpm dlx agent-annotations start --host 0.0.0.0`)
-and publish the port. The token still protects everything except `/health`.
+If the receiver runs inside Docker or a VM and Chrome runs outside it, start
+it with `--host 0.0.0.0` and publish the port. The token still protects
+everything except the health check.
 
-### Option C: receiver only (advanced / debugging)
-If you only want the receiver (no skill/instructions install), run:
+```bash
+pnpm dlx agent-annotations start --host 0.0.0.0
+```
+
+### Receiver only
+
+To run just the receiver, without installing a skill:
+
 ```bash
 pnpm dlx agent-annotations-receiver --port 8787
 ```
 
-On first run it:
-- prints a token
-- writes `.agent-annotations/token.txt`
-- writes `.agent-annotations/config.json` with the receiver base URL and the
-  repo's project ID and name (the ID is kept across restarts; edit `name` to
-  change how the extension shows the repo)
+The receiver's HTTP API is described in
+[packages/agent-annotations-receiver/README.md](packages/agent-annotations-receiver/README.md).
 
-Paste the token into the extension’s connection settings.
+## Updating
 
----
+Update the extension and every connected repo together.
 
-## 3) Install into a repo (init scaffold)
+1. Download the new zip from the
+   [latest release](https://github.com/ossianravn/agent-annotations/releases/latest),
+   unzip it over your extension folder, and click the reload button on the
+   extension's card in `chrome://extensions`.
+2. In each repo, stop the receiver (`Ctrl+C`) and run:
 
-This installs repo integration + skill/instructions, but does not start the receiver:
-
-```bash
-pnpm dlx agent-annotations init
-```
-
-### Options
-- `--agent auto|codex|claude|gemini|antigravity|opencode|copilot|all`
-  - `auto` detects common agent config folders and falls back to `codex`
-- `--skill repo|user|none` (default: `repo`)
-- `--receiver repo|none` (default: `repo`)
-- `--force` overwrite existing managed files (required when updating a repo integration)
-
-### Examples
-
-Install Codex skill into the repo:
-```bash
-pnpm dlx agent-annotations init --agent codex --skill repo
-```
-
-Install Claude Code skill globally:
-```bash
-pnpm dlx agent-annotations init --agent claude --skill user
-```
-
-Skip adding receiver files (you’ll run the receiver some other way):
-```bash
-pnpm dlx agent-annotations init --receiver none
-```
-
-Install everything (useful for open-source repos that want to support multiple agents):
-```bash
-pnpm dlx agent-annotations init --agent all --skill repo
-```
-
-Copilot note:
-- Copilot does not use `SKILL.md`. The scaffold will create/update:
-  - `.github/copilot-instructions.md`
-
----
-
-## 4) Where data goes
-
-Each card is a folder: `.agent-annotations/cards/<id>/card.md` (JSON front
-matter, then your comment as Markdown) and `cards/<id>/assets/` (screenshots).
-Finished cards stay in place with status `done`; nothing moves.
-
-Upgrading from 0.4: the receiver moves `inbox.jsonl` and
-`inbox-resolved.jsonl` into card folders on its first start and keeps the old
-files as `*.migrated`.
-
----
-
-## 5) Using it with agents
-
-### Skills-based agents (Codex, Claude Code, Gemini CLI, Antigravity, OpenCode)
-If you installed the skill, invoke it by name: `check-agent-annotations`.
-
-Examples:
-- **Codex**: `$check-agent-annotations`
-- **Claude Code**: `/check-agent-annotations`
-
-### Any agent (manual)
-Point the agent at the cards tool: `node .tools/agent-annotations-cards.cjs help`.
-It claims the next Ready card (`next --agent <name>`), adds notes
-(`comment`), and hands cards back for review or with a question (`handback`).
-
-Browser validation should only happen if the **user explicitly asks**, and only using tools available in that agent environment (browser skill, MCP tool, Playwright, etc.).
-
----
-
-## Repo hygiene
-
-- `.tools/` is intentionally a **process tool** folder.
-- In most repos you’ll want to ignore `.agent-annotations/`; copy `.gitignore.snippet` into your repo’s `.gitignore`.
-
----
-
-## Maintainers: releasing
-
-1. Bump versions to `X.Y.Z` in:
-   - `chrome-extension/manifest.json`
-   - `packages/agent-annotations/package.json`
-   - `packages/agent-annotations-receiver/package.json`
-2. Commit the version bump.
-3. Tag and push:
    ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
+   pnpm dlx agent-annotations@latest setup --force
    ```
 
-This triggers GitHub Actions to:
-- build and attach the extension zip to a GitHub Release
-- publish `agent-annotations` and `agent-annotations-receiver` to npm (via npm Trusted Publishers)
+`setup` without `--force` keeps the files that are already installed, so it
+would start the old receiver again. If you have edited the installed skill or
+instructions and want to keep them, add `--skill none`.
+
+## Where your data goes
+
+Each card is a folder in your repository:
+
+```text
+.agent-annotations/
+  config.json          project ID and name, receiver URL, agent limit
+  token.txt            the receiver token
+  cards/
+    ann_…/
+      card.md          JSON front matter, then your comment as Markdown
+      assets/          screenshots
+```
+
+Finished cards stay where they are with status `done`. To change how the
+project's name appears in the extension, edit `name` in `config.json`.
+
+`setup` also writes `.gitignore.snippet`. Copy its lines into your
+`.gitignore`: it always ignores the token, and you can choose whether
+screenshots and cards are committed.
+
+Upgrading from 0.4: on its first start the receiver moves `inbox.jsonl` and
+`inbox-resolved.jsonl` into card folders and keeps the old files as
+`*.migrated`.
+
+## Troubleshooting
+
+**The panel says Offline.**
+The receiver isn't running, or runs on another port. Start it from the repo
+root with `pnpm dlx agent-annotations start`, then reopen the panel. A custom
+port goes in the panel's Settings.
+
+**The panel says Other repo running.**
+A different repo's receiver is on the port this page's project uses. Start the
+right receiver, or move the page to the running repo from the prompt.
+
+**Port 8787 is already in use.**
+Another receiver is running, often for a different repo. Stop it, or start
+this one with `--port <port>` and set the same URL in the panel's Settings.
+
+**The agent doesn't know the skill.**
+Run `setup` again with `--agent <your agent>`, or ask the agent to run
+`node .tools/agent-annotations-cards.cjs help` and follow it.
+
+## Development
+
+| Path | Contents |
+| --- | --- |
+| `chrome-extension/` | The side panel, board, content script and service worker (plain MV3 JavaScript). |
+| `packages/agent-annotations/` | The `agent-annotations` CLI: `setup`, `init`, `start`, `cards`. |
+| `packages/agent-annotations-receiver/` | The receiver, card store and cards CLI. These files are the originals. |
+| `repo-integration/` | Templates copied into repos: `.tools/`, skills and instruction snippets. |
+| `tests/` | Unit tests and real-Chrome journeys. |
+| `scripts/` | Packaging, receiver sync and the README screenshots. |
+
+To try local changes, load `chrome-extension/` unpacked and run the receiver
+from this checkout:
+
+```bash
+node packages/agent-annotations-receiver/bin/agent-annotations-receiver.js --repo <path-to-a-repo> --port 8787
+```
+
+Useful commands:
+
+```bash
+pnpm test:extension            # extension unit tests
+pnpm test:receiver             # receiver and card store tests
+pnpm test:extension:browser    # end-to-end journeys in headless Chrome
+pnpm sync:receiver             # copy the receiver into the templates after editing it
+pnpm screenshots:readme        # regenerate the screenshots in this README
+pnpm package:extension         # build dist/agent-annotations-chrome-extension-v<version>.zip
+```
+
+The browser journeys and the screenshot script use Chrome for Testing from
+`~/.agent-browser/browsers` if it is installed, otherwise your installed
+Chrome. Set `CHROME_PATH` to use another build.
+
+### Releasing
+
+1. Set the same version in `chrome-extension/manifest.json`,
+   `packages/agent-annotations/package.json` and
+   `packages/agent-annotations-receiver/package.json`, and commit it as
+   "Bump version to X.Y.Z".
+2. Tag and push:
+
+   ```bash
+   git tag -a vX.Y.Z -m "vX.Y.Z"
+   git push origin main vX.Y.Z
+   ```
+
+GitHub Actions then attaches the extension zip to a GitHub release and
+publishes both npm packages through npm Trusted Publishers.
+
+## License
+
+[MIT](LICENSE)
