@@ -1,6 +1,6 @@
 {
   "name": "agent-annotations-receiver",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": false,
   "description": "Local receiver for Agent Annotations (stores annotations as cards in .agent-annotations/cards).",
   "keywords": [
