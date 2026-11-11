@@ -1,4 +1,5 @@
 import { $ } from "./shared.js";
+import { commandBlock, receiverHost, SETUP_COMMAND, UPDATE_COMMAND } from "../shared/receiver_setup.mjs";
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -43,17 +44,35 @@ function copyFor(prompt) {
   if (prompt.kind === "token") {
     return [{ strong: prompt.project.name }, " rejected its saved token. Paste the token the receiver printed."];
   }
-  return [
-    "The running receiver is too old to confirm it serves ", { strong: prompt.project.name },
-    ". Run setup --force in that repo, then Refresh."
-  ];
+  const host = receiverHost(prompt.receiverUrl);
+  if (prompt.kind === "start") {
+    return [
+      "No receiver is running at ", { strong: host },
+      ". In a terminal, go to your project's folder, run this and leave it running:"
+    ];
+  }
+  // "legacy": a receiver from before projects existed.
+  const repo = prompt.repoName;
+  return repo
+    ? [{ strong: repo }, " is running an older receiver, which can't add pages. Stop it, then run this in ", { strong: repo }, ":"]
+    : ["The receiver at ", { strong: host }, " is an older version, which can't add pages. Stop it, then run this in its repo:"];
 }
+
+function commandFor(prompt) {
+  if (prompt.kind === "start") return SETUP_COMMAND;
+  if (prompt.kind === "legacy") return UPDATE_COMMAND;
+  return null;
+}
+
 
 // The question the prompt asks; a refresh that asks the same one keeps the prompt.
 function promptKey(prompt) {
   if (!prompt) return null;
-  const { kind, origin, needsToken, running, project } = prompt;
-  return JSON.stringify([kind, origin, Boolean(needsToken), running?.id, running?.name, running?.receiverUrl, project?.id, project?.name]);
+  const { kind, origin, needsToken, running, project, repoName, receiverUrl } = prompt;
+  return JSON.stringify([
+    kind, origin, Boolean(needsToken), running?.id, running?.name, running?.receiverUrl,
+    project?.id, project?.name, repoName, receiverUrl
+  ]);
 }
 
 let shown = { key: null, prompt: null };
@@ -73,6 +92,8 @@ export function renderProjectPrompt(prompt, handlers) {
   if (!prompt) return;
 
   root.appendChild(sentence(copyFor(prompt)));
+  const command = commandFor(prompt);
+  if (command) root.appendChild(commandBlock(command));
   const tokenName = prompt.kind === "token" ? prompt.project.name : prompt.running?.name;
   const token = prompt.kind === "token" || prompt.needsToken ? tokenField(tokenName) : null;
   if (token) root.appendChild(token.field);

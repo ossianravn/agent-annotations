@@ -1,0 +1,29 @@
+/* A shell command to copy. In a narrow panel the button moves below it. */
+.prompt-command {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-inline-size: 36rem;
+}
+
+.prompt-command code {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--hairline);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  user-select: all;
+}
+
+.prompt-command code span {
+  white-space: nowrap;
+}
+
+.prompt-command .btn {
+  flex: none;
+  color: var(--text);
+  min-inline-size: 5rem;
+}

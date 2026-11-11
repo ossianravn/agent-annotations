@@ -3,6 +3,7 @@ import { loadProjects } from "../shared/projects.mjs";
 import { listCards, readHealth } from "./api.js";
 import { bindCardDialog, openCard, refreshOpenCard } from "./card_dialog.js";
 import { bindColumns, renderBoard } from "./columns.js";
+import { hideNoProjects, showNoProjects } from "./empty_state.js";
 import { bindNewCard } from "./new_card.js";
 import { $, announce, board, setConnection, showMessage } from "./state.js";
 
@@ -46,9 +47,10 @@ async function selectProject(projectId) {
   renderBoard();
   if (!board.project) {
     setConnection("none");
-    showMessage("No projects yet. Open a page in the side panel while its repo's receiver is running, then choose Add page.");
+    await showNoProjects();
     return;
   }
+  hideNoProjects();
   $("projectSelect").value = board.project.id;
   document.title = `${board.project.name} · Board`;
   history.replaceState(null, "", `?project=${encodeURIComponent(board.project.id)}`);
@@ -98,9 +100,20 @@ function bindFilters() {
   $("projectSelect").addEventListener("change", () => selectProject($("projectSelect").value));
 }
 
+// The first page added in the side panel brings the board up by itself.
+function followProjects() {
+  chrome.storage.onChanged.addListener(async (changes, area) => {
+    if (area !== "local" || !changes.projects || board.project) return;
+    board.projects = await loadProjects();
+    renderProjectOptions();
+    if (board.projects.length) await selectProject(board.projects[0].id);
+  });
+}
+
 async function main() {
   board.projects = await loadProjects();
   renderProjectOptions();
+  followProjects();
   bindFilters();
   bindColumns({ onOpen: openCard });
   bindCardDialog();

@@ -11,6 +11,7 @@ import { renderProjectPrompt } from "./project_prompt.js";
 import { checkToken, probeReceiver } from "./receiver.js";
 import { requestSync } from "./outbox.js";
 import { connectEvents } from "../shared/live_events.mjs";
+import { repoNameOf } from "../shared/receiver_setup.mjs";
 import { $, state } from "./shared.js";
 
 // "Not now" lasts for this panel session only.
@@ -60,7 +61,11 @@ async function resolveRoute() {
   if (project) {
     if (!health) return { project, status: "offline", target: project };
     if (!running) {
-      return { project, status: "other-repo", prompt: { kind: "legacy", project, receiverUrl } };
+      return {
+        project,
+        status: "outdated",
+        prompt: { kind: "legacy", project, repoName: repoNameOf(health) || project.name, receiverUrl }
+      };
     }
     if (running.id !== project.id) {
       // Saving now would write into whichever repo happens to own the port.
@@ -76,11 +81,23 @@ async function resolveRoute() {
     return { project, status, target: project, prompt: tokenProblem ? { kind: "token", project } : null };
   }
 
-  if (!health) return { project: null, status: "offline", target: null };
+  if (!health) {
+    // Only the first run needs telling how to start one; later, unrelated
+    // pages stay quiet.
+    const prompt = state.projects.length ? null : { kind: "start", receiverUrl };
+    return { project: null, status: "offline", target: null, prompt };
+  }
   if (!running) {
-    // Receivers older than 0.4.4 have no project identity: keep the old behaviour.
-    const status = await checkToken(receiverUrl, state.settings.token);
-    return { project: null, status, target: { receiverUrl, token: state.settings.token } };
+    // Receivers older than 0.4.4 have no project identity, so the page can't
+    // be added. Saves still reach the old inbox until the repo is updated.
+    const tokenStatus = await checkToken(receiverUrl, state.settings.token);
+    return {
+      project: null,
+      // Updating is the step that matters; a token comes after it.
+      status: "outdated",
+      target: tokenStatus === "ok" ? { receiverUrl, token: state.settings.token } : null,
+      prompt: { kind: "legacy", project: null, repoName: repoNameOf(health), receiverUrl }
+    };
   }
   const credentials = await credentialsFor(running);
   const ready = credentials.status === "ok";
@@ -102,9 +119,23 @@ function blockedReason(route) {
   if (route.prompt?.kind === "mismatch") {
     return `This page belongs to ${route.prompt.project.name}, but ${route.prompt.running.name} is running.`;
   }
-  if (route.prompt?.kind === "legacy") return "The running receiver is too old to confirm this page's repo.";
+  if (route.prompt?.kind === "legacy" && route.prompt.project) {
+    return "The running receiver is too old to confirm this page's repo.";
+  }
   if (route.prompt?.kind === "add" && route.prompt.needsToken) return `Add the token for ${route.prompt.running.name} first.`;
   return null;
+}
+
+// While the panel waits for a receiver to start or be updated, it checks again
+// by itself, so the next step appears without reloading the page.
+let recheckTimer = null;
+const RECHECK_MS = 3000;
+
+function scheduleRecheck(route) {
+  clearTimeout(recheckTimer);
+  recheckTimer = ["start", "legacy"].includes(route.prompt?.kind)
+    ? setTimeout(() => refreshRoute().catch(() => {}), RECHECK_MS)
+    : null;
 }
 
 export async function refreshRoute() {
@@ -124,9 +155,11 @@ export async function refreshRoute() {
   $("projectName").textContent = route.project?.name || "No project";
   setConnectionStatus(route.status);
   renderProjectPrompt(route.prompt, { addPage, dismiss, saveToken });
-  followCards(state.target, route.status === "ok");
+  const reachable = route.status === "ok" || (route.status === "outdated" && Boolean(state.target));
+  followCards(state.target, reachable);
   // A repo that just became reachable may have annotations waiting for it.
-  if (route.status === "ok") requestSync();
+  if (reachable) requestSync();
+  scheduleRecheck(route);
 }
 
 async function storeProjects(projects) {

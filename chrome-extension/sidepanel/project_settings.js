@@ -55,7 +55,7 @@ export function renderProjectList() {
     root.appendChild(element(
       "p",
       "help",
-      "No projects yet. Open a page while its repo's receiver is running, then choose Add page."
+      "No projects yet. Choosing Add page on one of your app's pages adds its repo here."
     ));
     return;
   }

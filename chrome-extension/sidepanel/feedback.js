@@ -8,9 +8,10 @@ export function setConnectionStatus(status) {
   const label = $("connStatusLabel");
   const value = String(status || "offline");
   const isOk = value === "ok";
-  const isWarning = ["unauthorized", "missing-token", "other-repo"].includes(value);
+  const isWarning = ["unauthorized", "missing-token", "other-repo", "outdated"].includes(value);
   const descriptions = {
     ok: ["Connected", "Receiver connected"],
+    outdated: ["Update receiver", "The running receiver is an older version"],
     "other-repo": ["Other repo running", "A different repo's receiver is running"],
     "missing-token": ["Token missing", "Add the receiver token in Settings"],
     unauthorized: ["Bad token", "The receiver rejected the token"],

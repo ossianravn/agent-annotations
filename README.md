@@ -52,7 +52,9 @@ the receiver. Leave it running. It prints a token, which is also saved in
 Open the page you want to annotate (for example `http://localhost:3000`) and
 click the extension icon. The panel asks whether to add the page to your
 repo. Paste the token from step 2 and click **Add page**. The panel header
-now shows the repo's name and **Connected**.
+now shows the repo's name and **Connected**. If the panel says a repo is
+running an older receiver instead, stop that receiver and run
+`pnpm dlx agent-annotations@latest setup --force` in that repo.
 
 **4. Annotate something.**
 Turn on **Annotate** (or press `Ctrl+Shift+Y`, `Command+Shift+Y` on macOS)

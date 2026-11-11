@@ -7,6 +7,7 @@
     <title>Board · Agent Annotations</title>
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/controls.css">
+    <link rel="stylesheet" href="styles/command.css">
     <link rel="stylesheet" href="styles/dialogs.css">
     <link rel="stylesheet" href="styles/list.css">
     <link rel="stylesheet" href="styles/board.css">
@@ -46,7 +47,7 @@
       </label>
     </div>
 
-    <p id="boardMessage" class="board-message" hidden></p>
+    <div id="boardMessage" class="board-message" role="status" hidden></div>
 
     <main class="board" id="board" aria-label="Cards by status">
       <section class="column" data-status="draft" aria-labelledby="columnDraft">

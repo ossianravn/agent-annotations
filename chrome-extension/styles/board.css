@@ -267,3 +267,31 @@
   color: var(--muted);
   text-decoration: line-through;
 }
+
+/* Before any project exists there is nothing to pick, filter or add to. */
+.has-no-projects .board-project,
+.has-no-projects #connStatusLabel,
+.has-no-projects #newCard,
+.has-no-projects .board-toolbar {
+  display: none;
+}
+
+.board-message {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.board-message[hidden] {
+  display: none;
+}
+
+.board-message p {
+  margin: 0;
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
